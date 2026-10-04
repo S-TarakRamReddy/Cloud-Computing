@@ -13,6 +13,7 @@ services:
         condition: service_healthy
     volumes:
       - ./ml/model:/app/ml/model
+      - ./frontend:/app/frontend
 
   db:
     image: postgres:15-alpine
@@ -29,17 +30,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
-  # Optionally, we can serve frontend using nginx, but for simplicity we can just open index.html locally.
-  # Or use a simple python server for frontend
-  frontend:
-    image: python:3.10-slim
-    working_dir: /app/frontend
-    volumes:
-      - ./frontend:/app/frontend
-    command: python -m http.server 8080
-    ports:
-      - "8080:8080"
 
 volumes:
   postgres_data:

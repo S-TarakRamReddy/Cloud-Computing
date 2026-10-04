@@ -53,3 +53,10 @@ def model_info():
             "features_count": len(ml_service.feature_names) if ml_service.feature_names else 0
         }
     return {"status": "not_loaded"}
+
+from fastapi.staticfiles import StaticFiles
+import os
+
+frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+if os.path.exists(frontend_path):
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")

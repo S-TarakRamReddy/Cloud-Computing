@@ -10,6 +10,7 @@ RUN mkdir -p ml/model backend data reports/figures reports/screenshots docs
 
 COPY backend/ ./backend/
 COPY ml/model/ ./ml/model/
+COPY frontend/ ./frontend/
 
 # Set env vars
 ENV PYTHONPATH=/app

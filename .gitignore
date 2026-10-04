@@ -1,0 +1,31 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+env/
+ENV/
+
+# Environment Variables
+.env
+.env.local
+
+# ML Models and Data (Exclude large data, but KEEP final model artifacts for inference)
+data/*.csv
+ml/model/preprocessed_data.pkl
+
+# Output Reports / Artifacts
+reports/figures/*
+reports/screenshots/*
+!reports/screenshots/.gitkeep
+!reports/figures/.gitkeep
+
+# IDEs
+.vscode/
+.idea/
+
+# SQLite Database
+*.db
+*.sqlite

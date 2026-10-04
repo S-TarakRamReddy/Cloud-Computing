@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: fraud-detection-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fraud-detection-db
+          property: connectionString
+      - key: PROJECT_NAME
+        value: "Cloud-Based Credit Card Fraud Detection System"
+      # CORS: allow wildcard initially since frontend URL isn't strictly known until deployed.
+      # User can update FRONTEND_URL in dashboard later for strict CORS.
+      - key: FRONTEND_URL
+        value: "*"
+        
+  - type: web
+    name: fraud-detection-frontend
+    env: static
+    buildCommand: "sed -i 's|http://127.0.0.1:8000|'\"$BACKEND_URL\"'|g' frontend/js/main.js"
+    staticPublishPath: ./frontend
+    envVars:
+      - key: BACKEND_URL
+        fromService:
+          type: web
+          name: fraud-detection-backend
+          envVarKey: RENDER_EXTERNAL_URL
+
+databases:
+  - name: fraud-detection-db
+    databaseName: fraud_db
+    user: fraud_user
+    plan: free

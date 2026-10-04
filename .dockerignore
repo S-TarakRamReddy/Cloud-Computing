@@ -1,0 +1,6 @@
+venv/
+.git/
+__pycache__/
+*.pyc
+ml/model/preprocessed_data.pkl
+dataset/

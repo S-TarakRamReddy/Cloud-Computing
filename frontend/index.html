@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fraud Detection Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .card { border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .risk-high { color: #dc3545; font-weight: bold; }
+        .risk-medium { color: #ffc107; font-weight: bold; }
+        .risk-low { color: #198754; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark">
+    <div class="container-fluid">
+        <span class="navbar-brand mb-0 h1">Cloud-Based Credit Card Fraud Detection</span>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <!-- Stats Row -->
+    <div class="row mb-4" id="stats-container">
+        <!-- populated by JS -->
+    </div>
+
+    <div class="row">
+        <!-- Prediction Form -->
+        <div class="col-md-5">
+            <div class="card p-4">
+                <h4>Dataset Demo</h4>
+                <p class="text-muted small">Select an actual transaction from the dataset to test the model on all 30 features.</p>
+                
+                <div class="d-grid gap-2 mb-3">
+                    <button class="btn btn-danger" onclick="fetchDemo('fraud')">Select Fraud Example</button>
+                    <button class="btn btn-success" onclick="fetchDemo('legitimate')">Select Legitimate Example</button>
+                    <button class="btn btn-secondary" onclick="fetchDemo('random')">Select Random Example</button>
+                </div>
+
+                <div id="demo-details" class="mb-3 p-2 bg-light border rounded" style="display: none; max-height: 120px; overflow-y: auto; font-size: 0.85rem;">
+                    <strong>Dataset Label: <span id="demo-label"></span></strong><br>
+                    <span id="demo-features-text" class="text-break"></span>
+                </div>
+                
+                <button type="button" id="predict-btn" class="btn btn-primary w-100 mb-3" onclick="submitDemo()" disabled>Predict Fraud Risk</button>
+
+                <div class="mt-2 d-none" id="prediction-result">
+                    <h5 class="border-bottom pb-2">Prediction Result</h5>
+                    <p class="mb-1">Model Prediction: <span id="res-pred" class="badge fs-6"></span></p>
+                    <p class="mb-1">Fraud Risk Probability: <strong><span id="res-prob"></span>%</strong></p>
+                    <p class="mb-1">Decision Threshold: <span id="res-thresh"></span>%</p>
+                    <p class="mb-0">Risk Level: <span id="res-level"></span></p>
+                    <div class="mt-2 text-muted" style="font-size: 0.8rem;">
+                        <ul class="mb-0 ps-3">
+                            <li>Model: <span id="res-model"></span></li>
+                            <li>Features Evaluated: <span id="res-feat-count"></span></li>
+                        </ul>
+                    </div>
+                    <small class="text-muted mt-2 d-block">* This is a model-generated risk score, not absolute proof of fraud.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Table -->
+        <div class="col-md-7">
+            <div class="card p-4">
+                <h4>Recent Transactions</h4>
+                <div class="table-responsive">
+                    <table class="table table-striped" id="history-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Amount</th>
+                                <th>Prediction</th>
+                                <th>Risk (%)</th>
+                                <th>Level</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/main.js"></script>
+</body>
+</html>

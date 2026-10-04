@@ -5,43 +5,50 @@ import os
 async def main():
     reports_dir = os.path.join(os.path.dirname(__file__), "screenshots")
     os.makedirs(reports_dir, exist_ok=True)
+    
+    BASE_URL = "https://cloud-computing.tarakram.blitz.cloud"
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page(viewport={"width": 1280, "height": 800})
+        page = await browser.new_page(viewport={"width": 1280, "height": 900})
         
-        # 1. Homepage/Dashboard
-        await page.goto("http://localhost:8080/")
-        await page.wait_for_timeout(2000) # wait for stats to load
+        print("Capturing Dashboard...")
+        await page.goto(f"{BASE_URL}/index.html")
+        await page.wait_for_timeout(3000)
         await page.screenshot(path=os.path.join(reports_dir, "01_dashboard.png"))
         
-        # 2. Swagger API
-        await page.goto("http://localhost:8000/docs")
-        await page.wait_for_timeout(2000)
+        print("Capturing Swagger API...")
+        await page.goto(f"{BASE_URL}/docs")
+        await page.wait_for_timeout(3000)
         await page.screenshot(path=os.path.join(reports_dir, "07_swagger.png"))
 
-        # 3. Legitimate Prediction
-        await page.goto("http://localhost:8080/")
+        print("Capturing Legitimate Prediction...")
+        await page.goto(f"{BASE_URL}/index.html")
+        await page.wait_for_timeout(2000)
         await page.click("button:has-text('Select Legitimate Example')")
-        await page.wait_for_timeout(3000)
+        await page.wait_for_timeout(2000)
+        await page.screenshot(path=os.path.join(reports_dir, "02_legitimate_demo.png"))
         await page.click("button:has-text('Predict Fraud Risk')")
         await page.wait_for_timeout(3000)
         await page.screenshot(path=os.path.join(reports_dir, "03_legitimate_prediction.png"))
 
-        # 4. Fraud Prediction
+        print("Capturing Fraud Prediction...")
+        await page.reload()
+        await page.wait_for_timeout(2000)
         await page.click("button:has-text('Select Fraud Example')")
-        await page.wait_for_timeout(3000)
+        await page.wait_for_timeout(2000)
+        await page.screenshot(path=os.path.join(reports_dir, "04_fraud_demo.png"))
         await page.click("button:has-text('Predict Fraud Risk')")
         await page.wait_for_timeout(3000)
-        await page.screenshot(path=os.path.join(reports_dir, "04_fraud_prediction.png"))
+        await page.screenshot(path=os.path.join(reports_dir, "05_fraud_prediction.png"))
         
-        # 5. Transaction History (refresh to see both)
+        print("Capturing Transaction History & Statistics...")
         await page.reload()
-        await page.wait_for_timeout(1000)
-        await page.screenshot(path=os.path.join(reports_dir, "05_transaction_history.png"))
+        await page.wait_for_timeout(3000)
+        await page.screenshot(path=os.path.join(reports_dir, "06_transaction_history.png"))
         
         await browser.close()
-        print("Screenshots captured successfully.")
+        print("Screenshots captured successfully from Blitz Cloud.")
 
 if __name__ == "__main__":
     asyncio.run(main())

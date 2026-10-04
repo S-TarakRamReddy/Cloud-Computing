@@ -55,8 +55,17 @@ def model_info():
     return {"status": "not_loaded"}
 
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import os
 
 frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+
+@app.get("/")
+def serve_index():
+    index_file = os.path.join(frontend_path, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
+    return {"detail": "Not Found"}
+
 if os.path.exists(frontend_path):
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")

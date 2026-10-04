@@ -13,7 +13,6 @@ COPY ml/model/ ./ml/model/
 
 # Set env vars
 ENV PYTHONPATH=/app
-ENV DATABASE_URL=postgresql://user:password@db:5432/fraud_db
 
 EXPOSE 8000
 

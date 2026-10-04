@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+    <style>
+        .diagram-container { padding: 20px; background: white; margin-bottom: 50px; }
+    </style>
+</head>
+<body>
+
+<div class="diagram-container" id="arch">
+<div class="mermaid">
+graph TD
+    A[User / Browser] -->|HTTPS GET /index.html| B(Blitz.cloud)
+    A -->|HTTPS POST /predict/| B
+    B --> C[FastAPI Backend Container]
+    C --> D[Data Validation & Preprocessing]
+    D --> E[Calibrated XGBoost Model]
+    E --> F{Threshold Decision > 0.21}
+    F -->|Fraud| G[HIGH Risk]
+    F -->|Legitimate| H[LOW Risk]
+    G --> I[(PostgreSQL Database)]
+    H --> I
+    I -->|Transaction History| C
+</div>
+</div>
+
+<div class="diagram-container" id="ml_pipeline">
+<div class="mermaid">
+graph TD
+    A[(OpenML Dataset)] --> B[Data Cleaning & Deduplication]
+    B --> C[StandardScaler]
+    C --> D[70/15/15 Split]
+    D --> E[Train Set]
+    D --> F[Validation Set]
+    D --> G[Test Set]
+    E --> H[XGBoost Training<br/>scale_pos_weight]
+    H --> I[Hyperparameter Tuning]
+    I --> J[Threshold Optimization on Validation]
+    J --> K[Isotonic Calibration on Validation]
+    K --> L[Final CalibratedClassifierCV]
+    L --> M[Evaluate on Untouched Test Set]
+</div>
+</div>
+
+<div class="diagram-container" id="workflow">
+<div class="mermaid">
+sequenceDiagram
+    participant U as User
+    participant F as Frontend (JS)
+    participant A as FastAPI Backend
+    participant M as ML Model
+    participant D as PostgreSQL
+    U->>F: Enters Transaction Details
+    F->>A: POST /predict/ (JSON)
+    A->>A: Validate Input (Pydantic)
+    A->>M: Scale Features & predict_proba
+    M-->>A: Probability (e.g. 0.95)
+    A->>A: Risk Logic (prob > 0.21 = HIGH)
+    A->>D: INSERT Transaction Record
+    D-->>A: DB Commit Success
+    A-->>F: JSON Result (Prediction, Risk, Prob)
+    F-->>U: Update Dashboard UI
+</div>
+</div>
+
+<div class="diagram-container" id="cloud_arch">
+<div class="mermaid">
+graph LR
+    subgraph Blitz.cloud Environment
+        A[Load Balancer] --> B[Docker Container: FastAPI + Frontend]
+        B --> C[(Managed PostgreSQL)]
+        B --> D[ML Artifacts: Model, Scaler]
+    end
+    E[Public Client] -->|HTTPS| A
+</div>
+</div>
+
+</body>
+</html>

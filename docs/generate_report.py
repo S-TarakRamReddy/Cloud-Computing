@@ -59,7 +59,7 @@ def generate():
     # PRELIMINARY PAGES
     for _ in range(5): doc.add_paragraph()
     doc.add_heading("Cloud-Based Credit Card Fraud Detection System Using Machine Learning\n", 0).alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_paragraph("\nA B.Tech Project Report\n\nSubmitted by:\nS. Tarak Ram Reddy (24WU0102051)\nS. Srinivasa Reddy (24WU0102052)\nM. Puneeth Reddy (24WU0102047)\nZunaira Khan (24WU0102020)\nPragnya D (24WU0102058)\n\nSupervised by:\nDr. M. Upendra Kumar\n\n[University Name]\n[Year]").alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph("\nA B.Tech Project Report\n\nSubmitted by:\nS. Tarak Ram Reddy (24WU0102051)\nS. Srinivasa Reddy (24WU0102052)\nM. Puneeth Reddy (24WU0102047)\nZunaira Khan (24WU0102020)\nPragnya D (24WU0102058)\n\nSupervised by:\nDr. M. Upendra Kumar\n\nWoxsen University\n2024-2028").alignment = WD_ALIGN_PARAGRAPH.CENTER
     doc.add_page_break()
 
     add_heading(doc, "CERTIFICATE", 1)
@@ -303,7 +303,7 @@ def generate():
         ['GET', '/demo/transaction', 'Returns a valid dataset sample for UI testing.']
     ])
 
-    output_path = os.path.join(base_dir, "..", "Cloud_Based_Credit_Card_Fraud_Detection_Report.docx")
+    output_path = os.path.join(base_dir, "..", "Cloud_Based_Credit_Card_Fraud_Detection_Report_Final.docx")
     doc.save(output_path)
     print(f"Report generated successfully at {output_path}")
 

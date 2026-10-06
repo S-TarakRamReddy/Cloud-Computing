@@ -59,21 +59,21 @@ def generate():
     # PRELIMINARY PAGES
     for _ in range(5): doc.add_paragraph()
     doc.add_heading("Cloud-Based Credit Card Fraud Detection System Using Machine Learning\n", 0).alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_paragraph("\nA B.Tech Project Report\n\nSubmitted by:\n[Student Name / Roll Number]\n\nSupervised by:\n[Faculty Name]\n\n[University Name]\n[Year]").alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph("\nA B.Tech Project Report\n\nSubmitted by:\nS. Tarak Ram Reddy (24WU0102051)\nS. Srinivasa Reddy (24WU0102052)\nM. Puneeth Reddy (24WU0102047)\nZunaira Khan (24WU0102020)\nPragnya D (24WU0102058)\n\nSupervised by:\nDr. M. Upendra Kumar\n\n[University Name]\n[Year]").alignment = WD_ALIGN_PARAGRAPH.CENTER
     doc.add_page_break()
 
     add_heading(doc, "CERTIFICATE", 1)
-    add_p(doc, "This is to certify that the project report entitled 'Cloud-Based Credit Card Fraud Detection System Using Machine Learning' is a bona fide record of work carried out by [Student Name] under my supervision. The report fulfills the requirements for the degree of Bachelor of Technology.")
-    doc.add_paragraph("\n\n_______________________\n[Faculty Name]\nSupervisor").alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    add_p(doc, "This is to certify that the project report entitled 'Cloud-Based Credit Card Fraud Detection System Using Machine Learning' is a bona fide record of work carried out by S. Tarak Ram Reddy, S. Srinivasa Reddy, M. Puneeth Reddy, Zunaira Khan, and Pragnya D under my supervision. The report fulfills the requirements for the degree of Bachelor of Technology.")
+    doc.add_paragraph("\n\n_______________________\nDr. M. Upendra Kumar\nSupervisor").alignment = WD_ALIGN_PARAGRAPH.RIGHT
     doc.add_page_break()
     
     add_heading(doc, "DECLARATION", 1)
-    add_p(doc, "I hereby declare that the work presented in this report entitled 'Cloud-Based Credit Card Fraud Detection System Using Machine Learning' is my own original work. Where information has been derived from other sources, I confirm that this has been indicated in the report. This work has not been submitted previously for any other degree or diploma.")
-    doc.add_paragraph("\n\n_______________________\n[Student Name]").alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    add_p(doc, "We hereby declare that the work presented in this report entitled 'Cloud-Based Credit Card Fraud Detection System Using Machine Learning' is our own original work. Where information has been derived from other sources, we confirm that this has been indicated in the report. This work has not been submitted previously for any other degree or diploma.")
+    doc.add_paragraph("\n\nS. Tarak Ram Reddy\nS. Srinivasa Reddy\nM. Puneeth Reddy\nZunaira Khan\nPragnya D").alignment = WD_ALIGN_PARAGRAPH.RIGHT
     doc.add_page_break()
 
     add_heading(doc, "ACKNOWLEDGEMENT", 1)
-    add_p(doc, "I would like to express my deepest appreciation to my supervisor, [Faculty Name], for their continuous guidance, encouragement, and invaluable feedback throughout this project. I would also like to thank my university for providing the resources and environment necessary to complete this technical research.")
+    add_p(doc, "We would like to express our deepest appreciation to our supervisor, Dr. M. Upendra Kumar, for their continuous guidance, encouragement, and invaluable feedback throughout this project. We would also like to thank our university for providing the resources and environment necessary to complete this technical research.")
     doc.add_page_break()
 
     add_heading(doc, "ABSTRACT", 1)
@@ -113,9 +113,9 @@ def generate():
     add_heading(doc, "2.2 Machine Learning-Based Fraud Detection", 2)
     add_p(doc, "To overcome rule-based limitations, supervised machine learning has become the industry standard. Algorithms learn non-linear decision boundaries directly from historical transaction features. Standard algorithms like Logistic Regression and Random Forests have been widely researched.")
     add_heading(doc, "2.3 Tree-Based Models and XGBoost", 2)
-    add_p(doc, "Ensemble tree-based models, particularly Extreme Gradient Boosting (XGBoost), have consistently outperformed other algorithms on tabular data. XGBoost iteratively builds decision trees, where each subsequent tree attempts to correct the residual errors of the previous sequence. It natively handles sparse data and provides parameters specifically designed for imbalanced datasets.")
+    add_p(doc, "Ensemble tree-based models, particularly Extreme Gradient Boosting (XGBoost) [3], have consistently outperformed other algorithms on tabular data. XGBoost iteratively builds decision trees, where each subsequent tree attempts to correct the residual errors of the previous sequence. It natively handles sparse data and provides parameters specifically designed for imbalanced datasets.")
     add_heading(doc, "2.4 Probability Calibration", 2)
-    add_p(doc, "A significant research gap in many academic fraud detection projects is the reliance on raw classifier scores. Tree-based models tend to push probabilities away from 0 and 1, resulting in poorly calibrated outputs. Niculescu-Mizil and Caruana (2005) demonstrated that Isotonic Regression can map these distorted scores into true empirical probabilities. In a banking context, a true probability is absolutely required to align with financial risk thresholds.")
+    add_p(doc, "A significant research gap in many academic fraud detection projects is the reliance on raw classifier scores. Tree-based models tend to push probabilities away from 0 and 1, resulting in poorly calibrated outputs. Niculescu-Mizil and Caruana (2005) demonstrated that Isotonic Regression can map these distorted scores into true empirical probabilities [1]. In a banking context, a true probability is absolutely required to align with financial risk thresholds [5].")
     add_heading(doc, "2.5 Real-Time Cloud Architectures", 2)
     add_p(doc, "Modern fraud detection requires inference latencies under 100 milliseconds. Microservice architectures utilizing frameworks like FastAPI deployed via Docker containers represent the current state-of-the-art for serving ML models over REST APIs.")
     doc.add_page_break()
@@ -159,7 +159,7 @@ def generate():
     # CHAPTER 5
     add_heading(doc, "CHAPTER 5 — DATASET AND DATA PREPROCESSING", 1)
     add_heading(doc, "5.1 Dataset Overview and Source", 2)
-    add_p(doc, "This project utilizes the OpenML Credit Card Fraud Dataset (Dataset ID: 1597), a widely recognized benchmark in the data science community. The dataset contains transactions made by European cardholders over a period of two days in September 2013.")
+    add_p(doc, "This project utilizes the OpenML Credit Card Fraud Dataset (Dataset ID: 1597), a widely recognized benchmark in the data science community. The dataset [2] contains transactions made by European cardholders over a period of two days in September 2013.")
     add_heading(doc, "5.2 Feature Description (V1–V28 and Amount)", 2)
     add_p(doc, "The dataset contains 284,807 transactions. Due to strict financial privacy regulations, the original raw features have been obfuscated using Principal Component Analysis (PCA) into 28 continuous numerical components (V1 through V28). The only features not subjected to PCA are 'Time' and 'Amount'. The 'Time' feature was dropped because the developed backend API processes individual transactions statelessly. Therefore, the final inference feature count is exactly 29 (V1-V28 + Amount).")
     add_heading(doc, "5.3 The Challenge of Class Imbalance", 2)
@@ -177,7 +177,7 @@ def generate():
     add_heading(doc, "6.1 Machine Learning Problem Formulation", 2)
     add_p(doc, "The objective is a supervised binary classification problem. Given a feature vector X consisting of 29 numerical dimensions, the model must learn a mapping function f(X) that outputs a probability P(y=1|X), where y=1 denotes a fraudulent transaction.")
     add_heading(doc, "6.2 Why XGBoost?", 2)
-    add_p(doc, "Extreme Gradient Boosting (XGBoost) builds sequential decision trees where each new tree specifically targets and minimizes the residual errors of the previous trees. It is highly optimized, handles non-linear relationships effortlessly, and natively supports class weighting.")
+    add_p(doc, "Extreme Gradient Boosting (XGBoost) [3] builds sequential decision trees where each new tree specifically targets and minimizes the residual errors of the previous trees. It is highly optimized, handles non-linear relationships effortlessly, and natively supports class weighting.")
     add_heading(doc, "6.3 Handling Imbalance with scale_pos_weight", 2)
     add_p(doc, "Instead of using SMOTE, this project leveraged XGBoost's native algorithmic penalty: `scale_pos_weight`. By calculating the ratio of negative instances to positive instances (approximately 576 to 1), the algorithm penalizes a false negative 576 times more heavily than a false positive. This forces the decision trees to focus intensely on the rare fraudulent patterns.")
     add_heading(doc, "6.4 Decision Threshold Optimization", 2)
@@ -191,7 +191,7 @@ def generate():
     # CHAPTER 7
     add_heading(doc, "CHAPTER 7 — SYSTEM IMPLEMENTATION", 1)
     add_heading(doc, "7.1 Backend Implementation (FastAPI)", 2)
-    add_p(doc, "The backend is implemented using FastAPI, selected for its native support for asynchronous programming and instantaneous request validation. It handles HTTP requests, orchestrates ML predictions, and communicates with the database.")
+    add_p(doc, "The backend is implemented using FastAPI [4], selected for its native support for asynchronous programming and instantaneous request validation. It handles HTTP requests, orchestrates ML predictions, and communicates with the database.")
     add_heading(doc, "7.2 Request Validation with Pydantic", 2)
     add_p(doc, "Pydantic schemas strictly define the expected incoming JSON payload. If a client attempts to submit a transaction missing a required feature, FastAPI automatically rejects the request with a detailed HTTP 422 error.")
     add_heading(doc, "7.3 REST API Endpoints", 2)
@@ -199,7 +199,7 @@ def generate():
     add_heading(doc, "7.4 Database Architecture (PostgreSQL & SQLAlchemy)", 2)
     add_p(doc, "Data persistence is managed via SQLAlchemy. A single `Transaction` model dictates the schema. The production system utilizes a managed PostgreSQL instance provisioned by Blitz.cloud, connected securely via the `DATABASE_URL` environment variable.")
     add_heading(doc, "7.5 Unified Frontend Implementation", 2)
-    add_p(doc, "The user interface is built using HTML5, CSS3, and JavaScript. To simplify cloud deployment and eliminate CORS security issues, FastAPI's `StaticFiles` module mounts the `frontend/` directory directly to the root (`/`) path.")
+    add_p(doc, "The user interface is built using HTML5, CSS3, and JavaScript. To simplify cloud deployment and eliminate CORS security issues, FastAPI's `StaticFiles` module mounts the `frontend/` directory, allowing the frontend to be served directly alongside the API.")
     add_heading(doc, "7.6 Containerization and Cloud Deployment", 2)
     add_p(doc, "The entire stack is containerized using Docker. The `Dockerfile` specifies a lightweight Python 3.10 runtime, copies artifacts, and uses `Uvicorn` to serve the API. Blitz.cloud automatically builds the image, provisions PostgreSQL, and exposes the application over HTTPS.")
     doc.add_page_break()
@@ -223,7 +223,7 @@ def generate():
     add_p(doc, "Recall and Precision: The model successfully detects 84.51% of all fraudulent transactions (Recall). Of all the transactions it flags as fraud, 86.96% are genuinely fraudulent (Precision). This represents an excellent operational balance.")
     add_heading(doc, "8.4 The Impact of Probability Calibration", 2)
     add_p(doc, "It is crucial to understand that Isotonic Calibration does NOT change the ranked ordering of predictions; therefore, binary classification metrics (Accuracy, Precision, Recall, F1) remain identical. The ROC-AUC and PR-AUC experience negligible shifts due to mathematical smoothing effects.")
-    add_p(doc, "However, the Brier Score significantly improved (dropped) from 0.00047 to 0.00040. The Brier Score measures the mean squared difference between the predicted probability and the actual outcome. The lower score definitively proves that the Calibrated Model's output percentages are vastly more trustworthy than the uncalibrated model's arbitrary confidence scores.")
+    add_p(doc, "However, the Brier Score significantly improved (dropped) from 0.00047 to 0.00040. The Brier Score measures the mean squared difference between the predicted probability and the actual outcome. The lower Brier Score indicates improved probabilistic calibration and greater reliability of the model's predicted probabilities. This makes the probability outputs more suitable for risk-based thresholding and decision-making.")
     add_image(doc, os.path.join(figures, "calibrated_xgboost_cm.png"), "Figure 8.1: Confusion Matrix")
     add_image(doc, os.path.join(figures, "roc_curve_comparison.png"), "Figure 8.2: ROC Curve")
     doc.add_page_break()
@@ -260,14 +260,14 @@ def generate():
         ['Legit Prediction', 'Prediction: LEGITIMATE, Risk: LOW', 'LEGITIMATE predicted, Prob <= 0.21', 'PASS'],
         ['Database Persistence', 'Transaction saved in DB', 'Record verified in /transactions', 'PASS'],
         ['Statistics Update', 'Stats reflect new transaction', 'Counts and percentages incremented', 'PASS'],
-        ['Frontend Root (/)', 'Serve index.html HTML content', 'HTML loaded successfully without 404', 'PASS']
+        ['Frontend Application (/index.html)', 'Dashboard HTML loads successfully', 'Live dashboard loaded successfully from the deployed application URL', 'PASS']
     ])
     doc.add_page_break()
 
     # CHAPTER 11
     add_heading(doc, "CHAPTER 11 — SECURITY, LIMITATIONS AND RELIABILITY", 1)
     add_heading(doc, "11.1 Security Implementation", 2)
-    add_p(doc, "The application validates all inputs via Pydantic, instantly rejecting malformed JSON to prevent injection attacks. The PostgreSQL connection string is passed securely as an environment variable by Blitz.cloud, preventing credential leakage in source code.")
+    add_p(doc, "The application uses Pydantic schemas to validate incoming request data and reject malformed, incomplete, or incorrectly typed payloads. This provides a controlled input-validation layer and reduces the risk associated with unexpected or malformed client input. The PostgreSQL connection string is supplied through the DATABASE_URL environment variable rather than being hardcoded in the source code.")
     add_heading(doc, "11.2 Model Reliability and False Positives", 2)
     add_p(doc, "With a precision of 86.96%, roughly 13% of transactions flagged as fraud are actually legitimate (false positives). In a banking context, this results in blocked cards and requires manual human review. While acceptable for a prototype, banking institutions often require precision rates exceeding 95% to minimize customer friction.")
     add_heading(doc, "11.3 Academic Prototype Limitations", 2)
@@ -294,7 +294,7 @@ def generate():
     # APPENDICES
     add_heading(doc, "APPENDIX A — API ENDPOINTS", 1)
     create_table(doc, ['HTTP Method', 'Endpoint', 'Purpose'], [
-        ['GET', '/', 'Serves the frontend static Dashboard.'],
+        ['GET', '/index.html', 'Serves the deployed frontend dashboard.'],
         ['GET', '/health', 'Verifies the FastAPI backend is responsive.'],
         ['GET', '/model-info', 'Returns ML model metadata (name, feature count).'],
         ['POST', '/predict/', 'Accepts 29 features and returns risk/probability.'],

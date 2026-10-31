@@ -4,6 +4,7 @@ from backend.schemas import TransactionInput, PredictionResponse, SensitivityInp
 from backend.database import get_db
 from backend.models import Transaction
 import logging
+from backend.metrics import record_prediction
 from backend.services.ml_service import ml_service, FeatureValidationError
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,7 @@ def predict_fraud(transaction_input: TransactionInput, log: bool = True, db: Ses
     try:
         # 1. Predict
         result = ml_service.predict(transaction_input.features)
+        record_prediction(result)
         
         if log:
             # 2. Extract amount for logging

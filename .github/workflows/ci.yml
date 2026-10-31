@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "devops/**", "feature/**", "fix/**", "ci/**"]
+    tags: ["v*"]
   pull_request:
     branches: [main]
 
@@ -10,7 +11,14 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: fraud-detection
+
 jobs:
+  # 1. Unit and API tests on a clean runner
   test:
     name: Unit and API tests
     runs-on: ubuntu-latest
@@ -28,6 +36,7 @@ jobs:
       - name: Run tests
         run: python -m pytest tests -v
 
+  # 2. Build the image and prove the running container works
   docker:
     name: Docker build and smoke test
     runs-on: ubuntu-latest
@@ -71,3 +80,158 @@ jobs:
       - name: Container logs on failure
         if: failure()
         run: docker logs app
+
+  # 3. Prove the monitoring stack (app + Prometheus + Grafana) works end to end
+  monitoring:
+    name: Monitoring stack check
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start app, Prometheus and Grafana
+        run: docker compose -f deploy/monitoring/docker-compose.yml up -d --build --wait --wait-timeout 180
+
+      - name: Generate some traffic
+        run: |
+          curl -sf "http://localhost:8000/demo/transaction?type=fraud" -o fraud.json
+          curl -sf "http://localhost:8000/demo/transaction?type=legitimate" -o legit.json
+          for f in fraud.json legit.json; do
+            python3 - "$f" <<'PY'
+          import json, sys, urllib.request
+          features = json.load(open(sys.argv[1]))["features"]
+          for _ in range(5):
+              req = urllib.request.Request(
+                  "http://localhost:8000/predict/?log=false",
+                  json.dumps({"features": features}).encode(),
+                  {"Content-Type": "application/json"},
+              )
+              urllib.request.urlopen(req, timeout=30).read()
+          PY
+          done
+
+      - name: Prometheus is scraping the app
+        run: |
+          for i in $(seq 1 24); do
+            up=$(curl -sf 'http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22fraud-api%22%7D' | jq -r '.data.result[0].value[1] // "none"')
+            n=$(curl -sf 'http://localhost:9090/api/v1/query?query=sum(fraud_predictions_total)' | jq -r '.data.result[0].value[1] // "0"')
+            echo "attempt $i: up=$up predictions=$n"
+            if [ "$up" = "1" ] && [ "${n%.*}" -ge 10 ]; then echo "Prometheus OK"; exit 0; fi
+            sleep 5
+          done
+          echo "Prometheus did not report the expected metrics"; exit 1
+
+      - name: Grafana has the datasource and dashboard
+        run: |
+          curl -sf -u admin:admin http://localhost:3000/api/datasources/uid/prometheus/health | grep -q '"status":"OK"'
+          curl -sf -u admin:admin 'http://localhost:3000/api/search?query=Fraud' | jq -e '.[] | select(.title=="Fraud API")'
+          echo "Grafana OK"
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -f deploy/monitoring/docker-compose.yml logs --no-color --tail 80
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f deploy/monitoring/docker-compose.yml down -v
+
+  # 4. Release: publish a versioned image once everything above is green (main and tags only)
+  release:
+    name: Publish image
+    runs-on: ubuntu-latest
+    needs: [test, docker, monitoring]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.vars.outputs.image }}
+      sha_tag: ${{ steps.vars.outputs.sha_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: vars
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "image=ghcr.io/${owner}/${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.vars.outputs.image }}
+          tags: |
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # 5. Staging: pull the exact published image and check it before anyone relies on it
+  staging:
+    name: Staging check (published image)
+    runs-on: ubuntu-latest
+    needs: release
+    environment: staging
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull and run the published image
+        run: |
+          docker pull "${{ needs.release.outputs.image }}:${{ needs.release.outputs.sha_tag }}"
+          docker run -d --name staging -p 8000:8000 "${{ needs.release.outputs.image }}:${{ needs.release.outputs.sha_tag }}"
+
+      - name: Verify it serves predictions
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health | grep -q '"model_loaded":true'; then break; fi
+            sleep 2
+          done
+          curl -sf http://localhost:8000/health | grep -q '"model_loaded":true'
+          curl -sf http://localhost:8000/metrics | grep -q fraud_model_loaded
+          curl -sf "http://localhost:8000/demo/transaction?type=legitimate" -o demo.json
+          python3 - <<'PY'
+          import json, urllib.request
+          features = json.load(open("demo.json"))["features"]
+          req = urllib.request.Request("http://localhost:8000/predict/?log=false",
+                                       json.dumps({"features": features}).encode(),
+                                       {"Content-Type": "application/json"})
+          result = json.loads(urllib.request.urlopen(req, timeout=30).read())
+          assert result["prediction"] == "LEGITIMATE", result
+          print("Staging OK:", result)
+          PY
+
+      - name: Logs on failure
+        if: failure()
+        run: docker logs staging
+
+  # 6. GitHub Release with notes, only when a version tag such as v1.0.0 is pushed
+  github-release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    needs: staging
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true

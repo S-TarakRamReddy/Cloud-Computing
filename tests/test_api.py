@@ -128,3 +128,21 @@ def test_borderline_samples_are_uncertain():
         assert data["borderline"] is True
         p = client.post("/predict/?log=false", json={"features": data["features"]}).json()["fraud_probability"]
         assert 0.1 < p < 0.95
+
+
+def test_metrics_endpoint_reports_traffic_and_predictions():
+    client.post("/predict/?log=false", json={"features": DEMO["fraud"][1]})
+    client.post("/predict/?log=false", json={"features": DEMO["legitimate"][0]})
+    text = client.get("/metrics").text
+    assert "fraud_model_loaded 1.0" in text
+    assert 'fraud_predictions_total{prediction="FRAUD"' in text
+    assert 'fraud_predictions_total{prediction="LEGITIMATE"' in text
+    assert 'fraud_api_requests_total{method="POST",path="/predict/",status="200"}' in text
+    assert "fraud_api_request_seconds_bucket" in text
+
+
+def test_metrics_labels_use_route_templates():
+    client.get("/transactions/123456789")  # 404, but must be labelled by template
+    text = client.get("/metrics").text
+    assert 'path="/transactions/{tx_id}"' in text
+    assert "123456789" not in text

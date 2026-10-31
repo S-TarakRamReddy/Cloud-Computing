@@ -20,8 +20,21 @@ branch -> commit -> push -> pull request -> CI -> merge to main -> release -> st
 | Release | push to `main` or a `v*` tag, after all checks pass | build and publish `ghcr.io/<owner>/fraud-detection` tagged `sha-<commit>` and `latest` (plus the version on tags) | repo "Packages" |
 | Staging | after Release | pull the exact published image and verify it serves predictions and metrics | Actions tab, `staging` environment |
 | GitHub Release | push of a `v*` tag, after Staging | create a release with generated notes | repo "Releases" |
+| Deploy | push to `main`, after Staging, needs `HF_TOKEN` | push the code to the Hugging Face Space and wait for it to serve | Actions tab, `huggingface` environment |
 
 Pushes to `main` and version tags are the only ones that publish an image. Feature branches run the checks only.
+
+## Continuous deployment to Hugging Face
+
+After every successful run on `main`, the `deploy-hf` job assembles the Space from this repository (`deploy/huggingface/`) and pushes it, then waits until the Space serves the new version. It needs one repository secret.
+
+**One-time setup**
+
+1. On huggingface.co open your profile, then **Settings, Access Tokens, Create new token**. Use a *fine-grained* token with **write access to the Space only** (or a classic *Write* token). Name it `github-actions-deploy` and copy it; it is shown once.
+2. On GitHub open the repository, then **Settings, Secrets and variables, Actions, New repository secret**. Name: `HF_TOKEN`. Value: the token. Click **Add secret**.
+3. Trigger a deploy: push any change to `main`, or open the latest run in the **Actions** tab and choose **Re-run all jobs**.
+
+Never paste the token into chat, code or a commit. If it leaks, revoke it on Hugging Face and create a new one. Without the secret the job prints a notice and does nothing, so the rest of the pipeline is unaffected.
 
 ## Making a change (pull-request workflow)
 

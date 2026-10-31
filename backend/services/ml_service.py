@@ -38,7 +38,19 @@ class MLService:
             logging.info(f"ML artifacts loaded successfully. Decision Threshold: {self.threshold}")
         except Exception as e:
             logging.error(f"Error loading ML artifacts: {e}")
+            self._log_environment()
             self.model = None
+
+    @staticmethod
+    def _log_environment():
+        """Log what the container actually holds, to diagnose missing model files in deployment."""
+        model_dir = os.path.dirname(settings.MODEL_PATH)
+        logging.error(f"cwd={os.getcwd()} PORT={os.getenv('PORT')} PYTHONPATH={os.getenv('PYTHONPATH')}")
+        for path in (os.path.dirname(model_dir), model_dir):
+            try:
+                logging.error(f"Contents of {path}: {sorted(os.listdir(path))}")
+            except OSError as err:
+                logging.error(f"Cannot list {path}: {err}")
 
     def predict(self, features_dict: dict):
         if not self.model or not self.scaler:

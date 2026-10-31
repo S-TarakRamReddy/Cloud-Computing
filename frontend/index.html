@@ -79,15 +79,21 @@
                             </button>
                         </div>
                         <div class="col-6">
+                            <button type="button" class="card scenario w-100 p-3 text-start" data-type="borderline" role="radio" aria-checked="false">
+                                <div class="icon">&#9878;&#65039;</div><div class="fw-semibold">Borderline case</div>
+                                <div class="small text-muted">The model is genuinely unsure</div>
+                            </button>
+                        </div>
+                        <div class="col-6">
                             <button type="button" class="card scenario w-100 p-3 text-start" data-type="random" role="radio" aria-checked="false">
                                 <div class="icon">&#127922;</div><div class="fw-semibold">Surprise me</div>
                                 <div class="small text-muted">Random labelled transaction</div>
                             </button>
                         </div>
-                        <div class="col-6">
-                            <button type="button" class="card scenario w-100 p-3 text-start" id="paste-toggle" role="radio" aria-checked="false">
-                                <div class="icon">&#128221;</div><div class="fw-semibold">My own data</div>
-                                <div class="small text-muted">Paste the 29 values as JSON</div>
+                        <div class="col-12">
+                            <button type="button" class="card scenario w-100 p-2 px-3 text-start" id="paste-toggle" role="radio" aria-checked="false">
+                                <span class="fw-semibold">&#128221; My own data</span>
+                                <span class="small text-muted"> &mdash; paste the 29 values as JSON</span>
                             </button>
                         </div>
                     </div>
@@ -131,7 +137,18 @@
                             <div class="form-text">Amount barely matters to this model (about 2% of its decision).</div>
                         </div>
                         <div id="sliders"></div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="reset-btn">Reset to original values</button>
+                        <div class="small text-muted mb-3">
+                            The coloured strip above each slider shows the model's answer at every position
+                            (<span class="text-success fw-semibold">green</span> = legitimate,
+                            <span class="fw-semibold" style="color:#b78103">amber</span> = medium risk,
+                            <span class="text-danger fw-semibold">red</span> = high risk).
+                            The model is a set of decision trees, so its answer changes in <em>steps</em> at certain values rather than smoothly.
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="flip-btn">Show me what flips the verdict</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="reset-btn">Reset to original values</button>
+                        </div>
+                        <div class="small mt-2" id="flip-msg" aria-live="polite"></div>
                     </div>
                 </div>
             </div>
@@ -175,6 +192,7 @@
                             <div class="small text-muted mt-2">
                                 An alert is raised at or above the decision threshold. Risk is MEDIUM from the threshold up to 1.5&times; it, and HIGH above that.
                             </div>
+                            <div class="small mt-1 fw-semibold" id="band-note"></div>
                         </div>
 
                         <h6 class="mb-1">Why did it decide this?</h6>
@@ -216,6 +234,18 @@
                     <div class="small text-muted" id="card-note"></div>
                 </div>
             </div>
+        </div>
+
+        <div class="card p-4 mt-4">
+            <h6>Why are the scores almost always near 0% or 100%?</h6>
+            <p class="small text-muted" id="bimodal-text"></p>
+            <div class="table-responsive">
+                <table class="table table-sm small mb-2">
+                    <thead><tr><th>Score band</th><th class="text-end">Test transactions</th><th class="text-end">Actually fraud</th><th>What it means</th></tr></thead>
+                    <tbody id="reliability-body"></tbody>
+                </table>
+            </div>
+            <div class="small text-muted">Use the <strong>Borderline case</strong> tile to try the rare transactions that land in the middle.</div>
         </div>
 
         <div class="card p-4 mt-4">

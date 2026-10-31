@@ -61,6 +61,31 @@ def main():
     ranges = {nm: [round(float(np.percentile(raw[:, i], 1)), 3), round(float(np.percentile(raw[:, i], 99)), 3)]
               for i, nm in enumerate(names)}
 
+    # How trustworthy each score band is: what share of test transactions in the band were fraud
+    bands = [(0.0, 0.01), (0.01, 0.05), (0.05, 0.21), (0.21, 0.5), (0.5, 0.95), (0.95, 1.0001)]
+    reliability = []
+    for lo, hi in bands:
+        sel = (prob >= lo) & (prob < hi)
+        reliability.append({"low": lo, "high": min(hi, 1.0), "transactions": int(sel.sum()),
+                            "fraud": int(y_test[sel].sum())})
+
+    # Real borderline transactions (model unsure) for the demo; mixes both true labels
+    mid = np.where((prob > 0.15) & (prob < 0.95))[0]
+    rng_pick = np.random.default_rng(SEED)
+    picks = []
+    for label in (1, 0):
+        pool = [i for i in mid if y_test[i] == label]
+        rng_pick.shuffle(pool)
+        picks += pool[:8]
+    borderline = [{"label": "FRAUD" if y_test[i] else "LEGITIMATE",
+                   "features": {nm: round(float(raw[i, j]), 6) for j, nm in enumerate(names)}} for i in picks]
+    demo_path = os.path.join(BASE, "..", "backend", "demo_data.json")
+    with open(demo_path) as f:
+        demo = json.load(f)
+    demo["borderline"] = borderline
+    with open(demo_path, "w") as f:
+        json.dump(demo, f)
+
     card = {
         "threshold": round(float(threshold), 4),
         "test_set": {"rows": int(n), "fraud_cases": int(y_test.sum())},
@@ -73,6 +98,7 @@ def main():
             "roc_auc": {"value": round(float(roc_auc_score(y_test, prob)), 4)},
         },
         "bootstrap": {"resamples": N_BOOT, "seed": SEED},
+        "reliability": reliability,
         "feature_importance": {nm: round(float(v), 4) for nm, v in zip(names, importance)},
         "feature_ranges": ranges,
         "versions": {"python": platform.python_version(), "scikit_learn": sklearn.__version__, "xgboost": xgb.__version__},

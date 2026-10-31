@@ -47,6 +47,44 @@
     "resamples": 1000,
     "seed": 42
   },
+  "reliability": [
+    {
+      "low": 0.0,
+      "high": 0.01,
+      "transactions": 41134,
+      "fraud": 8
+    },
+    {
+      "low": 0.01,
+      "high": 0.05,
+      "transactions": 125,
+      "fraud": 2
+    },
+    {
+      "low": 0.05,
+      "high": 0.21,
+      "transactions": 22,
+      "fraud": 1
+    },
+    {
+      "low": 0.21,
+      "high": 0.5,
+      "transactions": 2,
+      "fraud": 1
+    },
+    {
+      "low": 0.5,
+      "high": 0.95,
+      "transactions": 15,
+      "fraud": 8
+    },
+    {
+      "low": 0.95,
+      "high": 1.0,
+      "transactions": 52,
+      "fraud": 51
+    }
+  ],
   "feature_importance": {
     "V1": 0.0287,
     "V2": 0.0158,

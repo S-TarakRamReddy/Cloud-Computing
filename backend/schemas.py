@@ -6,6 +6,13 @@ class TransactionInput(BaseModel):
     # Depending on the dataset, we have V1-V28, Time, Amount
     features: Dict[str, float] = Field(..., description="Dictionary of transaction features including Amount and V1-V28")
 
+class SensitivityInput(BaseModel):
+    features: Dict[str, float]
+    feature: str
+    low: float
+    high: float
+    points: int = Field(60, ge=5, le=200)
+
 class Factor(BaseModel):
     feature: str
     value: float

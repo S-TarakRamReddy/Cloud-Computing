@@ -83,6 +83,17 @@ class MLService:
             for i in order
         ]
 
+    def sensitivity(self, features_dict: dict, feature: str, low: float, high: float, points: int = 60):
+        """Fraud probability as one feature sweeps from low to high, all others held fixed."""
+        if feature not in self.feature_names:
+            raise FeatureValidationError([], [feature], f"Unknown feature: {feature}")
+        base = np.array([features_dict[fn] for fn in self.feature_names], dtype=float)
+        values = np.linspace(low, high, points)
+        batch = np.tile(base, (points, 1))
+        batch[:, self.feature_names.index(feature)] = values
+        probs = self.model.predict_proba(self.scaler.transform(batch))[:, 1]
+        return [round(float(v), 4) for v in values], [round(float(p), 4) for p in probs]
+
     def predict(self, features_dict: dict):
         if not self.model or not self.scaler:
             raise ValueError("ML model is not loaded.")

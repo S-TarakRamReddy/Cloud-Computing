@@ -162,11 +162,41 @@ function renderCard(card) {
         `the true recall could plausibly be anywhere in that range, so quote it as a range rather than a single number.`;
 }
 
+function renderReliability(card) {
+    const total = card.test_set.rows;
+    const rel = card.reliability;
+    const low = rel.filter(b => b.high <= 0.05).reduce((s, b) => s + b.transactions, 0);
+    const high = rel.filter(b => b.low >= 0.95).reduce((s, b) => s + b.transactions, 0);
+    const mid = total - low - high;
+    $('bimodal-text').textContent =
+        `${pct(low / total, 1)}% of test transactions scored under 5%, ${high} scored above 95%, and only ${mid} ` +
+        `(${pct(mid / total, 2)}%) landed in between. Most transactions are clearly ordinary, and the fraud this dataset contains is ` +
+        `clearly different on the signals the model watches, so confident answers are normal. The scores are calibrated: ` +
+        `the table shows that high bands really are mostly fraud and low bands mostly are not. ` +
+        `The few transactions in the middle are where the model is truly uncertain.`;
+    const meaning = (b) => b.transactions === 0 ? "\u2013"
+        : b.low >= 0.95 ? "Very likely fraud"
+        : b.low >= 0.5 ? "Uncertain, leans fraud"
+        : b.low >= 0.21 ? "Uncertain"
+        : b.low >= 0.05 ? "Probably fine, some risk" : "Almost certainly fine";
+    $('reliability-body').replaceChildren(...rel.map(b => {
+        const tr = el('tr');
+        tr.append(
+            el('td', 'range-label', `${pct(b.low, 0)}% \u2013 ${pct(b.high, 0)}%`),
+            el('td', 'text-end', b.transactions.toLocaleString()),
+            el('td', 'text-end', `${b.fraud}${b.transactions ? ` (${pct(b.fraud / b.transactions, 0)}%)` : ""}`),
+            el('td', 'text-muted', meaning(b))
+        );
+        return tr;
+    }));
+}
+
 async function loadModelCard() {
     try {
         state.card = await apiJson(`${API_BASE}/model-card`);
         renderImportance(state.card);
         renderCard(state.card);
+        renderReliability(state.card);
     } catch (e) {
         console.error("Model card unavailable", e);
         $('card-intro').textContent = "Model evaluation details are not available.";
@@ -182,14 +212,15 @@ function setActiveScenario(button) {
     });
 }
 
-function loadSample(features, label) {
+function loadSample(features, label, borderline = false) {
+    state.borderline = borderline;
     state.original = { ...features };
     state.current = { ...features };
     state.label = label;
 
     $('sample-info').classList.remove('d-none');
     const badge = $('demo-label');
-    badge.textContent = label || "Your data (no label)";
+    badge.textContent = (label || "Your data (no label)") + (borderline ? " (borderline)" : "");
     badge.className = "badge " + (label === "FRAUD" ? "bg-danger" : label === "LEGITIMATE" ? "bg-success" : "bg-secondary");
     $('demo-features-text').textContent = Object.entries(features)
         .map(([k, v]) => `${k}: ${Number(v).toFixed(4)}`).join(', ');
@@ -207,7 +238,7 @@ async function selectScenario(button) {
     const honest = $('honest-mode').checked;
     try {
         const data = await apiJson(`${API_BASE}/demo/transaction?type=${encodeURIComponent(state.scenario)}&honest=${honest}`);
-        loadSample(data.features, data.type);
+        loadSample(data.features, data.type, data.borderline);
     } catch (e) {
         console.error('Error fetching demo:', e);
         showError('Failed to fetch demo transaction: ' + e.message);
@@ -264,7 +295,8 @@ function buildWhatIf() {
     topFeatures().forEach(name => {
         const [lo, hi] = state.card.feature_ranges[name];
         const value = Number(state.current[name]);
-        const min = Math.min(lo, value), max = Math.max(hi, value);
+        const pad = (hi - lo) * 0.1;   // keep the thumb off the very end of the track
+        const min = Math.min(lo, value) - pad, max = Math.max(hi, value) + pad;
 
         const wrap = el('div', 'mb-3');
         const head = el('div', 'd-flex justify-content-between small');
@@ -280,18 +312,95 @@ function buildWhatIf() {
         input.addEventListener('input', () => {
             state.current[name] = Number(input.value);
             readout.textContent = Number(input.value).toFixed(2);
+            $('flip-msg').textContent = "";
             scheduleLivePrediction();
         });
+        input.addEventListener('change', scheduleStrips);
         head.firstChild.htmlFor = input.id;
 
-        wrap.append(head, input);
+        const strip = el('div', 'rounded');
+        strip.style.cssText = "height: 8px; margin: 4px 0 0; background: #e9ecef;";
+        strip.id = `strip-${name}`;
+
+        wrap.append(head, strip, input);
         box.appendChild(wrap);
     });
+    scheduleStrips();
+}
+
+// ---------- answer strips + flip finder ----------
+const curves = {};   // feature -> {values, probabilities, threshold}
+let stripTimer = null;
+
+function scheduleStrips() {
+    clearTimeout(stripTimer);
+    stripTimer = setTimeout(refreshStrips, 200);
+}
+
+function colourFor(p, thr) {
+    if (p >= thr * 1.5) return "#dc3545";
+    if (p >= thr) return "#f0ad4e";
+    return "#2fa66a";
+}
+
+async function refreshStrips() {
+    if (!state.current) return;
+    const snapshot = { ...state.current };
+    await Promise.all(Array.from(document.querySelectorAll('#sliders input')).map(async (input) => {
+        const name = input.id.replace('slider-', '');
+        try {
+            const curve = await apiJson(`${API_BASE}/predict/sensitivity`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ features: snapshot, feature: name, low: Number(input.min), high: Number(input.max), points: 80 })
+            });
+            curves[name] = curve;
+            const n = curve.probabilities.length;
+            const stops = curve.probabilities.map((p, i) =>
+                `${colourFor(p, curve.threshold)} ${(i / n) * 100}%, ${colourFor(p, curve.threshold)} ${((i + 1) / n) * 100}%`);
+            $(`strip-${name}`).style.background = `linear-gradient(to right, ${stops.join(", ")})`;
+        } catch (e) {
+            console.error("Sensitivity failed for", name, e);
+        }
+    }));
+}
+
+async function findFlip() {
+    if (!state.current) return;
+    await refreshStrips();
+    const msg = $('flip-msg');
+    msg.className = "small mt-2";
+    let best = null;
+    for (const [name, curve] of Object.entries(curves)) {
+        const input = $(`slider-${name}`);
+        if (!input) continue;
+        const thr = curve.threshold, cur = Number(state.current[name]);
+        const here = curve.values.reduce((bi, v, i) => Math.abs(v - cur) < Math.abs(curve.values[bi] - cur) ? i : bi, 0);
+        const verdictNow = curve.probabilities[here] >= thr;
+        for (let i = 0; i < curve.values.length; i++) {
+            if ((curve.probabilities[i] >= thr) !== verdictNow) {
+                const dist = Math.abs(i - here);
+                if (!best || dist < best.dist) best = { name, input, value: curve.values[i], dist, to: verdictNow ? "LEGITIMATE" : "FRAUD" };
+            }
+        }
+    }
+    if (!best) {
+        msg.textContent = "No single signal change within these ranges flips the verdict. The model is very sure here.";
+        msg.classList.add("text-muted");
+        return;
+    }
+    const from = Number(state.current[best.name]);
+    best.input.value = best.value;
+    best.input.dispatchEvent(new Event('input'));
+    best.input.dispatchEvent(new Event('change'));
+    msg.textContent = `Moving ${best.name} from ${from.toFixed(2)} to ${best.value.toFixed(2)} flips the verdict to ${best.to}.`;
+    msg.classList.add("fw-semibold");
 }
 
 function resetWhatIf() {
     if (!state.original) return;
     state.current = { ...state.original };
+    $('flip-msg').textContent = "";
     buildWhatIf();
     runPrediction({ log: false });
 }
@@ -327,6 +436,12 @@ function renderResult(result) {
     fill.style.background = isFraud ? "#dc3545" : "#198754";
     $('meter-thresh').style.left = `${Math.min(thr * 100, 100)}%`;
     $('thresh-label').textContent = `alert at ${pct(thr, 0)}%`;
+
+    // what this score band has meant on the test set
+    const band = state.card && state.card.reliability.find(b => prob >= b.low && (prob < b.high || b.high >= 1));
+    $('band-note').textContent = band
+        ? `In testing, ${band.transactions.toLocaleString()} transactions scored in this range (${pct(band.low, 0)}%\u2013${pct(band.high, 0)}%); ${band.fraud} ${band.fraud === 1 ? 'was' : 'were'} actually fraud.`
+        : "";
 
     // dataset label vs model verdict
     const note = $('match-note');
@@ -398,6 +513,7 @@ $('paste-toggle').addEventListener('click', togglePaste);
 $('paste-load').addEventListener('click', loadPasted);
 $('predict-btn').addEventListener('click', () => runPrediction({ log: true }));
 $('reset-btn').addEventListener('click', resetWhatIf);
+$('flip-btn').addEventListener('click', findFlip);
 $('refresh-btn').addEventListener('click', refreshDashboard);
 $('amount-input').addEventListener('input', (e) => {
     const v = Number(e.target.value);

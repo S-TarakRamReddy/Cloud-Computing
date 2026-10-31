@@ -19,7 +19,7 @@ from backend.services.ml_service import ml_service
 
 @router.get("/transaction")
 def get_demo_transaction(
-    type: Literal["fraud", "legitimate", "random"] = "random",
+    type: Literal["fraud", "legitimate", "random", "borderline"] = "random",
     honest: bool = False,
 ):
     """Return a labelled dataset transaction.
@@ -27,6 +27,13 @@ def get_demo_transaction(
     By default fraud/legitimate picks only samples the model gets right (a clean demo).
     With honest=true any labelled sample can be returned, including ones the model misses.
     """
+    if type == "borderline":
+        samples = demo_data.get("borderline", [])
+        if not samples:
+            raise HTTPException(status_code=404, detail="No borderline samples available")
+        pick = random.choice(samples)
+        return {"type": pick["label"], "features": pick["features"], "borderline": True}
+
     if type == "random":
         actual_type = random.choice(["fraud", "legitimate"])
         transactions = demo_data.get(actual_type, [])

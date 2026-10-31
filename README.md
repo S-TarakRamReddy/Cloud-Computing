@@ -1,5 +1,7 @@
 # Cloud-Based Credit Card Fraud Detection System Using Machine Learning
 
+[![CI](https://github.com/S-TarakRamReddy/Cloud-Computing/actions/workflows/ci.yml/badge.svg)](https://github.com/S-TarakRamReddy/Cloud-Computing/actions/workflows/ci.yml)
+
 ## Overview
 A Machine Learning and Cloud-Based Framework for Real-Time Transaction Fraud Risk Prediction.
 This system accepts transaction information, evaluates it using an Isotonic-Calibrated XGBoost model, and predicts whether a transaction is legitimate or potentially fraudulent, providing an accurate, calibrated fraud probability score.

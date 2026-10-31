@@ -107,3 +107,24 @@ def test_model_card_available():
 def test_demo_honest_mode_returns_labelled_sample():
     data = client.get("/demo/transaction?type=fraud&honest=true").json()
     assert data["type"] == "FRAUD" and len(data["features"]) == 29
+
+
+def test_sensitivity_curve():
+    body = {"features": DEMO["fraud"][1], "feature": "V14", "low": -10, "high": 5, "points": 40}
+    data = client.post("/predict/sensitivity", json=body).json()
+    assert len(data["values"]) == len(data["probabilities"]) == 40
+    assert all(0 <= p <= 1 for p in data["probabilities"])
+    assert len(set(data["probabilities"])) > 1  # the answer actually moves with the feature
+
+
+def test_sensitivity_rejects_unknown_feature():
+    body = {"features": DEMO["fraud"][1], "feature": "Nope", "low": 0, "high": 1}
+    assert client.post("/predict/sensitivity", json=body).status_code == 422
+
+
+def test_borderline_samples_are_uncertain():
+    for _ in range(5):
+        data = client.get("/demo/transaction?type=borderline").json()
+        assert data["borderline"] is True
+        p = client.post("/predict/?log=false", json={"features": data["features"]}).json()["fraud_probability"]
+        assert 0.1 < p < 0.95

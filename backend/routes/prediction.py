@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from backend.schemas import TransactionInput, PredictionResponse
+from backend.schemas import TransactionInput, PredictionResponse, SensitivityInput
 from backend.database import get_db
 from backend.models import Transaction
 import logging
@@ -9,6 +9,26 @@ from backend.services.ml_service import ml_service, FeatureValidationError
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/predict", tags=["Prediction"])
+
+@router.post("/sensitivity")
+def feature_sensitivity(body: SensitivityInput):
+    """Probability curve for one feature while the rest stay fixed (powers the what-if sliders)."""
+    try:
+        missing = [fn for fn in ml_service.feature_names if fn not in body.features]
+        if missing:
+            raise FeatureValidationError(missing, [])
+        if body.high <= body.low:
+            raise HTTPException(status_code=422, detail="high must be greater than low")
+        values, probs = ml_service.sensitivity(body.features, body.feature, body.low, body.high, body.points)
+        return {"feature": body.feature, "values": values, "probabilities": probs,
+                "threshold": ml_service.threshold}
+    except FeatureValidationError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
 
 @router.post("/", response_model=PredictionResponse)
 def predict_fraud(transaction_input: TransactionInput, log: bool = True, db: Session = Depends(get_db)):

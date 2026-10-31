@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.database import engine, Base
 from backend.routes import prediction, transactions, statistics
 from backend.config import settings
-from backend.metrics import metrics_middleware, render_metrics
+from backend.metrics import build_summary, metrics_middleware, render_metrics
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -48,6 +48,12 @@ def metrics():
     """Prometheus scrape endpoint."""
     from backend.services.ml_service import ml_service
     return render_metrics(ml_service.model is not None)
+
+@app.get("/monitoring/summary", tags=["System"])
+def monitoring_summary():
+    """Aggregates of recent traffic and predictions for the dashboard's Monitoring pane."""
+    from backend.services.ml_service import ml_service
+    return build_summary(ml_service.model_card, ml_service.model is not None)
 
 @app.get("/model-card", tags=["System"])
 def model_card():

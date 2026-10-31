@@ -3,8 +3,10 @@ title: Cloud Fraud Detection
 emoji: 🛡️
 colorFrom: blue
 colorTo: indigo
-sdk: docker
-app_port: 8000
+sdk: gradio
+sdk_version: 6.31.0
+python_version: "3.10"
+app_file: app.py
 pinned: false
 ---
 

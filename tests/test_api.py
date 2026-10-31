@@ -79,3 +79,31 @@ def test_pagination_limit_is_bounded():
 
 def test_demo_invalid_type_rejected():
     assert client.get("/demo/transaction?type=bogus").status_code == 422
+
+
+def test_prediction_includes_explanation():
+    data = client.post("/predict/", json={"features": DEMO["fraud"][1]}).json()
+    factors = data["top_factors"]
+    assert 1 <= len(factors) <= 6
+    assert {"feature", "value", "contribution", "direction"} <= set(factors[0])
+    assert factors[0]["feature"] == "V14"  # dominant signal for this model
+    assert factors[0]["direction"] == "fraud"
+
+
+def test_log_false_does_not_store_transaction():
+    before = client.get("/statistics/").json()["total_transactions"]
+    client.post("/predict/?log=false", json={"features": DEMO["legitimate"][0]})
+    after = client.get("/statistics/").json()["total_transactions"]
+    assert after == before
+
+
+def test_model_card_available():
+    card = client.get("/model-card").json()
+    assert card["confusion_matrix"]["tp"] + card["confusion_matrix"]["fn"] == card["test_set"]["fraud_cases"]
+    assert 0 < card["metrics"]["recall"]["ci95"][0] < card["metrics"]["recall"]["ci95"][1] <= 1
+    assert abs(sum(card["feature_importance"].values()) - 1) < 0.01
+
+
+def test_demo_honest_mode_returns_labelled_sample():
+    data = client.get("/demo/transaction?type=fraud&honest=true").json()
+    assert data["type"] == "FRAUD" and len(data["features"]) == 29

@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import engine, Base
 from backend.routes import prediction, transactions, statistics
@@ -39,6 +39,14 @@ app.include_router(demo.router)
 def health_check():
     from backend.services.ml_service import ml_service
     return {"status": "healthy" if ml_service.model else "degraded", "model_loaded": ml_service.model is not None}
+
+@app.get("/model-card", tags=["System"])
+def model_card():
+    """Honest evaluation numbers, feature importance and typical feature ranges."""
+    from backend.services.ml_service import ml_service
+    if not ml_service.model_card:
+        raise HTTPException(status_code=404, detail="Model card not available")
+    return ml_service.model_card
 
 @app.get("/model-info", tags=["System"])
 def model_info():

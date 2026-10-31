@@ -1,10 +1,16 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 
 class TransactionInput(BaseModel):
     # Depending on the dataset, we have V1-V28, Time, Amount
     features: Dict[str, float] = Field(..., description="Dictionary of transaction features including Amount and V1-V28")
+
+class Factor(BaseModel):
+    feature: str
+    value: float
+    contribution: float
+    direction: str
 
 class PredictionResponse(BaseModel):
     prediction: str
@@ -13,6 +19,7 @@ class PredictionResponse(BaseModel):
     decision_threshold: float
     model: str
     feature_count: int
+    top_factors: List[Factor] = []
 
 class TransactionResponse(BaseModel):
     id: int

@@ -235,3 +235,47 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+
+  # 7. Continuous deployment: push the verified code to the Hugging Face Space (main only).
+  #    Needs a repository secret named HF_TOKEN; without it this job reports a notice and does nothing.
+  deploy-hf:
+    name: Deploy to Hugging Face Space
+    runs-on: ubuntu-latest
+    needs: staging
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: huggingface
+    concurrency:
+      group: deploy-hf
+      cancel-in-progress: false
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_SPACE: Tkcy1205/cloud-fraud-detection
+    steps:
+      - name: Check that a token is configured
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "::notice title=Deployment skipped::Add a repository secret named HF_TOKEN to enable deployment to the Hugging Face Space."
+          fi
+
+      - uses: actions/checkout@v4
+        if: env.HF_TOKEN != ''
+
+      - name: Push to the Space
+        if: env.HF_TOKEN != ''
+        run: bash deploy/huggingface/sync_space.sh
+
+      - name: Wait for the Space to serve the new version
+        if: env.HF_TOKEN != ''
+        run: |
+          owner="${HF_SPACE%%/*}"; name="${HF_SPACE##*/}"
+          url="https://${owner,,}-${name,,}.hf.space"
+          echo "Waiting for $url (the Space rebuilds after every push; this can take several minutes)"
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$url/monitoring/summary" || true)
+            echo "attempt $i: /monitoring/summary -> $code"
+            if [ "$code" = "200" ]; then
+              curl -sf "$url/health" | grep -q '"model_loaded":true' && { echo "Space is serving the new version"; exit 0; }
+            fi
+            sleep 20
+          done
+          echo "The Space did not serve the new version in time"; exit 1

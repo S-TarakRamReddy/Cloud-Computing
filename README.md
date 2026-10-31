@@ -1,3 +1,13 @@
+---
+title: Cloud Fraud Detection
+emoji: 🛡️
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 8000
+pinned: false
+---
+
 # Cloud-Based Credit Card Fraud Detection System Using Machine Learning
 
 ## Overview

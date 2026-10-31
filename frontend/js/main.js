@@ -514,6 +514,8 @@ $('paste-load').addEventListener('click', loadPasted);
 $('predict-btn').addEventListener('click', () => runPrediction({ log: true }));
 $('reset-btn').addEventListener('click', resetWhatIf);
 $('flip-btn').addEventListener('click', findFlip);
+$('mon-refresh').addEventListener('click', fetchMonitoring);
+$('mon-traffic').addEventListener('click', sendSampleTraffic);
 $('refresh-btn').addEventListener('click', refreshDashboard);
 $('amount-input').addEventListener('input', (e) => {
     const v = Number(e.target.value);
@@ -527,5 +529,199 @@ $('honest-mode').addEventListener('change', () => {
     if (active) selectScenario(active);
 });
 
+// ---------- monitoring pane ----------
+const SVG_NS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs = {}) {
+    const n = document.createElementNS(SVG_NS, tag);
+    Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v));
+    return n;
+}
+
+function formatDuration(sec) {
+    if (sec < 60) return `${sec}s`;
+    if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`;
+    return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
+}
+
+function monTile(label, value, sub, valueClass = "text-dark") {
+    const col = el('div', 'col-6 col-md-4 col-xl-2');
+    const card = el('div', 'card p-3 h-100');
+    card.append(el('div', 'small text-muted', label), el('div', `fs-4 fw-bold ${valueClass}`, value), el('div', 'small text-muted', sub));
+    col.appendChild(card);
+    return col;
+}
+
+function renderMonTiles(d) {
+    const t = d.totals_since_start, p = d.predictions, l = d.latency_ms;
+    const base = p.baseline_flag_rate;
+    $('mon-tiles').replaceChildren(
+        monTile("Model", d.model_loaded ? "Loaded" : "Not loaded", `Up ${formatDuration(d.uptime_seconds)}`, d.model_loaded ? "text-success" : "text-danger"),
+        monTile("API requests", t.requests.toLocaleString(), "since start"),
+        monTile("Predictions", t.predictions.toLocaleString(), `${p.in_window.toLocaleString()} in the last ${d.window_minutes} min`),
+        monTile("Flag rate", p.flag_rate === null ? "–" : `${pct(p.flag_rate, 1)}%`, base === null ? "no test baseline" : `test set: ${pct(base, 2)}%`),
+        monTile("p95 latency", l.p95 === null ? "–" : `${l.p95} ms`, l.p50 === null ? "no predictions yet" : `median ${l.p50} ms, ${l.count} requests`),
+        monTile("Errors", t.errors.toLocaleString(), "4xx and 5xx since start", t.errors > 0 ? "text-danger" : "text-success")
+    );
+}
+
+function renderTimeline(d) {
+    const W = 620, H = 190, left = 36, bottom = 26, top = 8, right = 8;
+    const n = d.timeline.length;
+    const max = Math.max(1, ...d.timeline.map(m => Math.max(m.requests, m.predictions)));
+    const plotW = W - left - right, plotH = H - top - bottom;
+    const slot = plotW / n, barW = slot * 0.62;
+    const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, width: '100%', role: 'img', 'aria-label': 'Requests, predictions and errors per minute' });
+    [0, 0.5, 1].forEach(f => {
+        const y = top + plotH * (1 - f);
+        svg.appendChild(svgEl('line', { x1: left, x2: W - right, y1: y, y2: y, stroke: '#e5e9ef', 'stroke-width': 1 }));
+        const lab = svgEl('text', { x: left - 6, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#5b6770' });
+        lab.textContent = Math.round(max * f);
+        svg.appendChild(lab);
+    });
+    d.timeline.forEach((m, i) => {
+        const x = left + i * slot + (slot - barW) / 2;
+        const bar = (value, color, w, dx) => {
+            if (value <= 0) return;
+            const h = (value / max) * plotH;
+            svg.appendChild(svgEl('rect', { x: x + dx, y: top + plotH - h, width: w, height: h, fill: color, rx: 1 }));
+        };
+        bar(m.requests, '#1f4e79', barW, 0);
+        bar(m.predictions, '#2ea043', barW * 0.55, 0);
+        bar(m.errors, '#d1343b', barW * 0.3, barW * 0.7);
+    });
+    [["30 min ago", left, 'start'], ["15 min", left + plotW / 2, 'middle'], ["now", W - right, 'end']].forEach(([txt, x, anchor]) => {
+        const lab = svgEl('text', { x, y: H - 8, 'text-anchor': anchor, 'font-size': 11, fill: '#5b6770' });
+        lab.textContent = txt;
+        svg.appendChild(lab);
+    });
+    $('mon-timeline').replaceChildren(svg);
+}
+
+function barRow(label, value, total, color) {
+    const row = el('div', 'imp-row');
+    const track = el('div', 'rounded');
+    track.style.cssText = 'height: 12px; background: #eef1f5;';
+    const bar = el('div', 'rounded');
+    bar.style.cssText = `height: 12px; background: ${color}; width: ${total ? (value / total) * 100 : 0}%;`;
+    track.appendChild(bar);
+    row.append(el('span', 'fw-semibold', label), track, el('span', 'text-end text-muted', value));
+    row.style.gridTemplateColumns = '96px 1fr 44px';
+    return row;
+}
+
+function renderVerdicts(d) {
+    const p = d.predictions;
+    const box = $('mon-verdicts');
+    if (!p.in_window) {
+        box.replaceChildren(el('div', 'text-muted small', "No predictions in the last 30 minutes. Use “Send 20 sample predictions” above."));
+        return;
+    }
+    const rows = [
+        ...[["FRAUD", "#d1343b"], ["LEGITIMATE", "#2ea043"]].map(([k, c]) => barRow(k, p.verdicts[k] || 0, p.in_window, c)),
+    ];
+    const gap = el('div', 'mt-3 mb-1 small text-muted fw-semibold', 'Risk level');
+    const risk = [["HIGH", "#d1343b"], ["MEDIUM", "#f0ad4e"], ["LOW", "#2ea043"]].map(([k, c]) => barRow(k, p.risk_levels[k] || 0, p.in_window, c));
+    const wrap = el('div', 'd-grid gap-1');
+    wrap.append(...rows);
+    box.replaceChildren(wrap, gap, ...(() => { const w = el('div', 'd-grid gap-1'); w.append(...risk); return [w]; })());
+}
+
+function renderScores(d) {
+    const sd = d.score_distribution;
+    const total = d.predictions.in_window;
+    const rows = sd.bands.map((b, i) => {
+        const live = total ? sd.live_counts[i] / total : 0;
+        const base = sd.baseline_share ? sd.baseline_share[i] : null;
+        const row = el('div');
+        row.style.cssText = 'display: grid; grid-template-columns: 84px 1fr 168px; gap: 8px; align-items: center; font-size: .85rem;';
+        const lab = el('span', 'fw-semibold', `${pct(b.low, 0)}–${pct(b.high, 0)}%`);
+        const bars = el('div');
+        const mk = (w, color) => {
+            const t = el('div', 'rounded');
+            t.style.cssText = 'height: 9px; background: #eef1f5; margin: 2px 0;';
+            const f = el('div', 'rounded');
+            f.style.cssText = `height: 9px; width: ${Math.min(100, Math.max(w * 100, w > 0 ? 1 : 0))}%; background: ${color};`;
+            t.appendChild(f);
+            return t;
+        };
+        bars.append(mk(live, '#1f4e79'));
+        if (base !== null) bars.append(mk(base, '#b8c2cc'));
+        const vals = el('span', 'text-muted', `live ${pct(live, 1)}%` + (base !== null ? ` | test ${pct(base, 1)}%` : ''));
+        row.append(lab, bars, vals);
+        return row;
+    });
+    const legend = el('div', 'small text-muted mt-2');
+    legend.textContent = total ? `Dark blue: live (${total} predictions). Grey: share of the 41,350 test transactions in the same band.` : "No live predictions yet. Grey bars show the test-set baseline.";
+    const wrap = el('div', 'd-grid gap-2');
+    wrap.append(...rows);
+    $('mon-scores').replaceChildren(wrap, legend);
+}
+
+function renderRecent(d) {
+    const tbody = document.querySelector('#mon-recent tbody');
+    tbody.replaceChildren();
+    if (!d.recent_predictions.length) {
+        const tr = el('tr');
+        const td = el('td', 'text-center text-muted', 'None yet');
+        td.colSpan = 4;
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        return;
+    }
+    d.recent_predictions.forEach(r => {
+        const tr = el('tr');
+        tr.append(
+            el('td', 'text-muted', new Date(r.time).toLocaleTimeString()),
+            el('td', r.verdict === 'FRAUD' ? 'text-danger fw-semibold' : 'text-success fw-semibold', r.verdict),
+            el('td', null, `${pct(r.probability, 1)}%`),
+            el('td', riskClassFor(r.risk), r.risk)
+        );
+        tbody.appendChild(tr);
+    });
+}
+
+async function fetchMonitoring() {
+    try {
+        const d = await apiJson(`${API_BASE}/monitoring/summary`);
+        renderMonTiles(d);
+        renderTimeline(d);
+        renderVerdicts(d);
+        renderScores(d);
+        renderRecent(d);
+        $('mon-updated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+    } catch (e) {
+        console.error("Monitoring unavailable", e);
+        $('mon-updated').textContent = "Monitoring unavailable: " + e.message;
+    }
+}
+
+async function sendSampleTraffic() {
+    const btn = $('mon-traffic');
+    btn.disabled = true;
+    btn.textContent = "Sending...";
+    try {
+        const types = ["random", "random", "fraud", "legitimate", "borderline"];
+        for (let i = 0; i < 20; i++) {
+            const demo = await apiJson(`${API_BASE}/demo/transaction?type=${types[i % types.length]}&honest=true`);
+            await apiJson(`${API_BASE}/predict/?log=false`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ features: demo.features })
+            });
+        }
+    } catch (e) {
+        showError("Could not send sample traffic: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Send 20 sample predictions";
+        fetchMonitoring();
+    }
+}
+
+setInterval(() => {
+    if (document.visibilityState === 'visible' && $('mon-auto').checked) fetchMonitoring();
+}, 5000);
+
 loadModelCard();
 refreshDashboard();
+fetchMonitoring();

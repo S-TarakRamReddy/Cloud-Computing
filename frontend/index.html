@@ -45,6 +45,7 @@
         <div class="d-none d-md-flex gap-3 small">
             <a class="text-white-50 text-decoration-none" href="#analyze">Analyze</a>
             <a class="text-white-50 text-decoration-none" href="#model">How the model decides</a>
+            <a class="text-white-50 text-decoration-none" href="#monitoring">Monitoring</a>
             <a class="text-white-50 text-decoration-none" href="#activity">Activity</a>
         </div>
     </div>
@@ -279,6 +280,58 @@
                             <li>Honest mode and the uncertainty ranges show where it fails.</li>
                         </ul>
                     </details>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ MONITORING ============ -->
+    <section id="monitoring" class="mb-5">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <h4 class="mb-0">Monitoring</h4>
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <span class="small text-muted" id="mon-updated">Not loaded yet</span>
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="mon-auto" checked>
+                    <label class="form-check-label small" for="mon-auto">Auto-refresh (5 s)</label>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="mon-refresh">Refresh now</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="mon-traffic">Send 20 sample predictions</button>
+            </div>
+        </div>
+        <p class="small text-muted">What the service and the model are doing right now, from the last 30 minutes of traffic. It lives in the running service, so it resets on restart. For long-term history and alerts, use the Prometheus and Grafana stack.</p>
+        <div class="row g-3 mb-3" id="mon-tiles" aria-live="polite"></div>
+        <div class="row g-3">
+            <div class="col-lg-7">
+                <div class="card p-4 h-100">
+                    <h6 class="mb-1">Requests per minute</h6>
+                    <p class="small text-muted mb-2">Blue: API requests. Green: predictions. Red: errors (4xx and 5xx).</p>
+                    <div id="mon-timeline"></div>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="card p-4 h-100">
+                    <h6 class="mb-1">Verdicts and risk levels</h6>
+                    <p class="small text-muted mb-2">Predictions in the last 30 minutes.</p>
+                    <div id="mon-verdicts"></div>
+                </div>
+            </div>
+            <div class="col-lg-7">
+                <div class="card p-4 h-100">
+                    <h6 class="mb-1">Score distribution: live versus test set</h6>
+                    <p class="small text-muted mb-2">Share of predictions in each score band. If the live bars drift away from the grey test-set bars, the model is seeing different data than it was evaluated on. Demo traffic is deliberately fraud-heavy, so expect a difference here.</p>
+                    <div id="mon-scores"></div>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="card p-4 h-100">
+                    <h6 class="mb-1">Latest predictions</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm small mb-0" id="mon-recent">
+                            <thead><tr><th>Time</th><th>Verdict</th><th>Score</th><th>Risk</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

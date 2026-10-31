@@ -55,6 +55,18 @@ Metrics exposed by the API:
 | `fraud_api_request_seconds` | latency histogram per endpoint |
 | `fraud_predictions_total{prediction,risk_level}` | predictions served, by verdict |
 | `fraud_model_loaded` | 1 when the model is loaded, 0 otherwise |
+| `fraud_prediction_probability` | histogram of predicted fraud scores (use it to watch score drift) |
+
+### Two ways to watch the model
+
+| | Built-in Monitoring pane | Prometheus and Grafana |
+|---|---|---|
+| Where | the **Monitoring** section of the dashboard (`/monitoring/summary`) | `docker compose -f deploy/monitoring/docker-compose.yml up` |
+| Extra services | none | Prometheus and Grafana |
+| History | last 30 minutes, resets on restart | as long as Prometheus keeps it |
+| Good for | day-to-day: is it up, what is it predicting, is the score distribution drifting | long-term trends, several services, alerts |
+
+The pane shows request, prediction and error rates, the flag rate against the test-set baseline, p50 and p95 latency, verdict and risk mix, the live score distribution against the test set, and the latest predictions. Use *Send 20 sample predictions* to see it move.
 
 Try it: open the Grafana dashboard, use the app's dashboard to analyse a few transactions, and watch the panels move.
 

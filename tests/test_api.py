@@ -146,3 +146,36 @@ def test_metrics_labels_use_route_templates():
     text = client.get("/metrics").text
     assert 'path="/transactions/{tx_id}"' in text
     assert "123456789" not in text
+
+
+def test_monitoring_summary_tracks_predictions():
+    for sample in (DEMO["fraud"][1], DEMO["legitimate"][0], DEMO["legitimate"][1]):
+        client.post("/predict/?log=false", json={"features": sample})
+    d = client.get("/monitoring/summary").json()
+    assert d["model_loaded"] is True
+    assert len(d["timeline"]) == d["window_minutes"] == 30
+    assert d["predictions"]["in_window"] >= 3
+    assert set(d["predictions"]["verdicts"]) >= {"FRAUD", "LEGITIMATE"}
+    assert sum(d["score_distribution"]["live_counts"]) == d["predictions"]["in_window"]
+    assert len(d["score_distribution"]["baseline_share"]) == len(d["score_distribution"]["bands"])
+    assert d["latency_ms"]["p95"] is not None and d["latency_ms"]["count"] >= 3
+    assert 1 <= len(d["recent_predictions"]) <= 10
+    assert d["recent_predictions"][0]["probability"] >= 0
+
+
+def test_monitoring_summary_does_not_count_itself():
+    first = client.get("/monitoring/summary").json()["totals_since_start"]["requests"]
+    client.get("/monitoring/summary")
+    client.get("/metrics")
+    second = client.get("/monitoring/summary").json()["totals_since_start"]["requests"]
+    assert first == second
+
+
+def test_event_log_is_bounded():
+    from backend import metrics
+    assert metrics.EVENTS.maxlen == metrics.MAX_EVENTS == 5000
+
+
+def test_score_histogram_is_exported():
+    client.post("/predict/?log=false", json={"features": DEMO["fraud"][1]})
+    assert "fraud_prediction_probability_bucket" in client.get("/metrics").text

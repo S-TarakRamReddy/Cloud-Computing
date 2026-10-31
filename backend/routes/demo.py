@@ -18,7 +18,15 @@ if os.path.exists(demo_file):
 from backend.services.ml_service import ml_service
 
 @router.get("/transaction")
-def get_demo_transaction(type: Literal["fraud", "legitimate", "random"] = "random"):
+def get_demo_transaction(
+    type: Literal["fraud", "legitimate", "random"] = "random",
+    honest: bool = False,
+):
+    """Return a labelled dataset transaction.
+
+    By default fraud/legitimate picks only samples the model gets right (a clean demo).
+    With honest=true any labelled sample can be returned, including ones the model misses.
+    """
     if type == "random":
         actual_type = random.choice(["fraud", "legitimate"])
         transactions = demo_data.get(actual_type, [])
@@ -34,6 +42,9 @@ def get_demo_transaction(type: Literal["fraud", "legitimate", "random"] = "rando
     if not transactions:
         raise HTTPException(status_code=404, detail="No demo data available")
         
+    if honest:
+        return {"type": type.upper(), "features": random.choice(transactions)}
+
     # We want a random one that matches the expected prediction
     shuffled_transactions = random.sample(transactions, len(transactions))
     for transaction in shuffled_transactions:

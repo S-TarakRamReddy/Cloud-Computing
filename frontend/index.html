@@ -7,90 +7,273 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <style>
-        body { background-color: #f8f9fa; }
-        .card { border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        body { background-color: #f4f6f9; }
+        .card { border: 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(16,24,40,0.08); }
         .risk-high { color: #dc3545; font-weight: bold; }
-        .risk-medium { color: #ffc107; font-weight: bold; }
+        .risk-medium { color: #b78103; font-weight: bold; }
         .risk-low { color: #198754; font-weight: bold; }
+        .step-badge { width: 28px; height: 28px; border-radius: 50%; background: #0d6efd; color: #fff;
+                      display: inline-flex; align-items: center; justify-content: center; font-weight: 600; margin-right: 8px; }
+        .scenario { cursor: pointer; border: 2px solid transparent; transition: border-color .15s, transform .15s; }
+        .scenario:hover { transform: translateY(-2px); }
+        .scenario.active { border-color: #0d6efd; }
+        .scenario .icon { font-size: 1.6rem; }
+        .verdict { border-radius: 12px; padding: 16px 20px; color: #fff; }
+        .verdict.fraud { background: linear-gradient(135deg, #dc3545, #b02a37); }
+        .verdict.legit { background: linear-gradient(135deg, #198754, #146c43); }
+        .meter { position: relative; height: 22px; background: #e9ecef; border-radius: 11px; }
+        .meter .fill { height: 100%; border-radius: 11px; transition: width .4s; }
+        .meter .thresh { position: absolute; top: -6px; bottom: -6px; width: 2px; background: #212529; }
+        .meter .thresh span { position: absolute; top: -20px; left: -30px; width: 62px; text-align: center; font-size: .72rem; color: #495057; }
+        .factor-row { display: grid; grid-template-columns: 70px 1fr 64px; align-items: center; gap: 8px; font-size: .88rem; }
+        .factor-track { position: relative; height: 16px; background: #f1f3f5; border-radius: 4px; }
+        .factor-track .mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: #adb5bd; }
+        .factor-bar { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; }
+        .factor-bar.fraud { background: #dc3545; }
+        .factor-bar.legit { background: #198754; }
+        .imp-row { display: grid; grid-template-columns: 56px 1fr 52px; align-items: center; gap: 8px; font-size: .85rem; }
+        .imp-bar { height: 12px; border-radius: 3px; background: #0d6efd; }
+        details > summary { cursor: pointer; font-weight: 600; }
+        .range-label { font-variant-numeric: tabular-nums; }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark bg-dark">
-    <div class="container-fluid">
+<nav class="navbar navbar-dark bg-dark sticky-top">
+    <div class="container-xl">
         <span class="navbar-brand mb-0 h1">Cloud-Based Credit Card Fraud Detection</span>
+        <div class="d-none d-md-flex gap-3 small">
+            <a class="text-white-50 text-decoration-none" href="#analyze">Analyze</a>
+            <a class="text-white-50 text-decoration-none" href="#model">How the model decides</a>
+            <a class="text-white-50 text-decoration-none" href="#activity">Activity</a>
+        </div>
     </div>
 </nav>
 
-<div class="container mt-4">
+<div class="container-xl my-4">
     <div id="error-banner" class="alert alert-danger d-none" role="alert"></div>
 
-    <!-- Stats Row -->
-    <div class="row mb-4" id="stats-container" aria-live="polite">
-        <!-- populated by JS -->
+    <div class="alert alert-secondary small" role="note">
+        <strong>Demo, not a production system.</strong>
+        Transactions come from a public, anonymised dataset (European cardholders, September 2013).
+        Pick a scenario, see what the model decides and <em>why</em>, then change the key signals to see how the answer moves.
     </div>
 
-    <div class="row">
-        <!-- Prediction Form -->
-        <div class="col-md-5">
-            <div class="card p-4">
-                <h4>Dataset Demo</h4>
-                <p class="text-muted small">Select an actual transaction from the dataset to test the model on all 29 model features (V1–V28 and Amount).</p>
-                
-                <div class="d-grid gap-2 mb-3">
-                    <button class="btn btn-danger" onclick="fetchDemo('fraud')">Select Fraud Example</button>
-                    <button class="btn btn-success" onclick="fetchDemo('legitimate')">Select Legitimate Example</button>
-                    <button class="btn btn-secondary" onclick="fetchDemo('random')">Select Random Example</button>
-                </div>
-
-                <div id="demo-details" class="mb-3 p-2 bg-light border rounded" style="display: none; max-height: 120px; overflow-y: auto; font-size: 0.85rem;">
-                    <strong>Dataset Label: <span id="demo-label"></span></strong><br>
-                    <span id="demo-features-text" class="text-break"></span>
-                </div>
-                
-                <button type="button" id="predict-btn" class="btn btn-primary w-100 mb-3" onclick="submitDemo()" disabled>Predict Fraud Risk</button>
-
-                <div class="mt-2 d-none" id="prediction-result" aria-live="polite">
-                    <h5 class="border-bottom pb-2">Prediction Result</h5>
-                    <p class="mb-1">Model Prediction: <span id="res-pred" class="badge fs-6"></span></p>
-                    <p class="mb-1">Fraud Risk Probability: <strong><span id="res-prob"></span>%</strong></p>
-                    <p class="mb-1">Decision Threshold: <span id="res-thresh"></span>%</p>
-                    <p class="mb-0">Risk Level: <span id="res-level"></span></p>
-                    <div class="mt-2 text-muted" style="font-size: 0.8rem;">
-                        <ul class="mb-0 ps-3">
-                            <li>Model: <span id="res-model"></span></li>
-                            <li>Features Evaluated: <span id="res-feat-count"></span></li>
-                        </ul>
+    <!-- ============ ANALYZE ============ -->
+    <section id="analyze" class="mb-5">
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <div class="card p-4 mb-4">
+                    <h5 class="mb-3"><span class="step-badge">1</span>Choose a transaction</h5>
+                    <div class="row g-2 mb-3" id="scenario-grid" role="radiogroup" aria-label="Transaction scenario">
+                        <div class="col-6">
+                            <button type="button" class="card scenario w-100 p-3 text-start" data-type="fraud" role="radio" aria-checked="false">
+                                <div class="icon">&#9888;&#65039;</div><div class="fw-semibold">Known fraud</div>
+                                <div class="small text-muted">Labelled fraudulent in the dataset</div>
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button type="button" class="card scenario w-100 p-3 text-start" data-type="legitimate" role="radio" aria-checked="false">
+                                <div class="icon">&#9989;</div><div class="fw-semibold">Known legitimate</div>
+                                <div class="small text-muted">Labelled genuine in the dataset</div>
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button type="button" class="card scenario w-100 p-3 text-start" data-type="random" role="radio" aria-checked="false">
+                                <div class="icon">&#127922;</div><div class="fw-semibold">Surprise me</div>
+                                <div class="small text-muted">Random labelled transaction</div>
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button type="button" class="card scenario w-100 p-3 text-start" id="paste-toggle" role="radio" aria-checked="false">
+                                <div class="icon">&#128221;</div><div class="fw-semibold">My own data</div>
+                                <div class="small text-muted">Paste the 29 values as JSON</div>
+                            </button>
+                        </div>
                     </div>
-                    <small class="text-muted mt-2 d-block">* This is a model-generated risk score, not absolute proof of fraud. Demo only, not for real financial decisions.</small>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" id="honest-mode">
+                        <label class="form-check-label small" for="honest-mode">
+                            Honest mode: include cases the model gets wrong
+                        </label>
+                    </div>
+
+                    <div id="paste-box" class="d-none mb-3">
+                        <label for="paste-input" class="form-label small mb-1">JSON with all 29 features (V1&ndash;V28 and Amount)</label>
+                        <textarea id="paste-input" class="form-control form-control-sm font-monospace" rows="4" placeholder='{"V1": 0.1, "V2": -1.2, ..., "Amount": 25.0}'></textarea>
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="paste-load">Load these values</button>
+                    </div>
+
+                    <div id="sample-info" class="d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small text-muted">Dataset label</span>
+                            <span id="demo-label" class="badge"></span>
+                        </div>
+                        <details class="small">
+                            <summary>Show all 29 raw values</summary>
+                            <div id="demo-features-text" class="text-break text-muted mt-2" style="max-height: 130px; overflow-y: auto;"></div>
+                        </details>
+                    </div>
+                </div>
+
+                <div class="card p-4" id="whatif-card">
+                    <h5 class="mb-1"><span class="step-badge">2</span>What-if explorer</h5>
+                    <p class="small text-muted">Change the signals the model relies on most. The verdict updates live; nothing is saved while you explore.</p>
+                    <div id="whatif-empty" class="text-muted small">Choose a transaction first.</div>
+                    <div id="whatif-controls" class="d-none">
+                        <div class="mb-3">
+                            <label for="amount-input" class="form-label small mb-1">Amount</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">&euro;</span>
+                                <input type="number" min="0" step="0.01" class="form-control" id="amount-input">
+                            </div>
+                            <div class="form-text">Amount barely matters to this model (about 2% of its decision).</div>
+                        </div>
+                        <div id="sliders"></div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="reset-btn">Reset to original values</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="card p-4 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <h5 class="mb-0"><span class="step-badge">3</span>Result</h5>
+                        <button type="button" class="btn btn-primary" id="predict-btn" disabled>Analyze &amp; save to history</button>
+                    </div>
+
+                    <div id="result-empty" class="text-center text-muted py-5">
+                        <div style="font-size: 2.5rem">&#128269;</div>
+                        Choose a transaction on the left to see the model's decision and its reasons.
+                    </div>
+
+                    <div id="prediction-result" class="d-none" aria-live="polite">
+                        <div id="verdict" class="verdict mb-3">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div>
+                                    <div class="small opacity-75">Model verdict</div>
+                                    <div class="fs-3 fw-bold" id="res-pred"></div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="small opacity-75">Risk level</div>
+                                    <div class="fs-5 fw-semibold" id="res-level"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="match-note" class="small mb-3"></div>
+
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>Fraud probability</span><strong><span id="res-prob"></span>%</strong>
+                            </div>
+                            <div class="meter" id="meter" style="margin-top: 22px">
+                                <div class="fill" id="meter-fill"></div>
+                                <div class="thresh" id="meter-thresh"><span id="thresh-label"></span></div>
+                            </div>
+                            <div class="small text-muted mt-2">
+                                An alert is raised at or above the decision threshold. Risk is MEDIUM from the threshold up to 1.5&times; it, and HIGH above that.
+                            </div>
+                        </div>
+
+                        <h6 class="mb-1">Why did it decide this?</h6>
+                        <p class="small text-muted mb-2" id="summary-text"></p>
+                        <div id="factors" class="d-grid gap-2 mb-2"></div>
+                        <div class="d-flex justify-content-between small text-muted mb-3">
+                            <span>&larr; pushes toward LEGITIMATE</span><span>pushes toward FRAUD &rarr;</span>
+                        </div>
+                        <div class="small text-muted">
+                            Model: <span id="res-model"></span> &middot; <span id="res-feat-count"></span> features evaluated.
+                            This is a risk score, not proof of fraud.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ MODEL ============ -->
+    <section id="model" class="mb-5">
+        <h4 class="mb-3">How the model decides</h4>
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card p-4 h-100">
+                    <h6>Which signals matter most</h6>
+                    <p class="small text-muted">Average share of the model's decision per feature, measured on the full test set. A handful of signals do most of the work.</p>
+                    <div id="importance" class="d-grid gap-1"></div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card p-4 h-100">
+                    <h6>How well it works (test set)</h6>
+                    <p class="small text-muted" id="card-intro">Loading evaluation&hellip;</p>
+                    <table class="table table-sm small mb-3">
+                        <thead><tr><th>Metric</th><th>Result</th><th>95% range*</th></tr></thead>
+                        <tbody id="metrics-body"></tbody>
+                    </table>
+                    <div id="confusion" class="row g-2 text-center small mb-2"></div>
+                    <div class="small text-muted" id="card-note"></div>
                 </div>
             </div>
         </div>
 
-        <!-- History Table -->
-        <div class="col-md-7">
-            <div class="card p-4">
-                <h4>Recent Transactions</h4>
-                <div class="table-responsive">
-                    <table class="table table-striped" id="history-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Amount</th>
-                                <th>Prediction</th>
-                                <th>Risk (%)</th>
-                                <th>Level</th>
-                                <th>Time</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- populated by JS -->
-                        </tbody>
-                    </table>
+        <div class="card p-4 mt-4">
+            <h6 class="mb-3">Why are the features anonymised &mdash; and is that a problem?</h6>
+            <div class="row g-4 small">
+                <div class="col-md-6">
+                    <details open>
+                        <summary>What V1&ndash;V28 are</summary>
+                        <p class="mt-2 text-muted">The dataset publisher turned the original card and transaction details into 28 numeric components (a PCA transformation) before release. The model never sees names, card numbers or merchants; it only sees numbers that describe patterns of behaviour.</p>
+                    </details>
+                    <details class="mt-2">
+                        <summary>Why that is useful in a cloud design</summary>
+                        <ul class="mt-2 text-muted mb-0">
+                            <li><strong>Privacy by design:</strong> a bank can keep identifying data in its own systems and send only anonymised vectors to a cloud scoring service, which limits what a breach or a cloud provider could expose.</li>
+                            <li><strong>Data minimisation:</strong> sending the least data that does the job fits GDPR and PCI-DSS expectations.</li>
+                            <li><strong>Shareable:</strong> anonymised vectors can be used across institutions and for research without revealing customers.</li>
+                        </ul>
+                    </details>
+                </div>
+                <div class="col-md-6">
+                    <details open>
+                        <summary>The honest trade-off</summary>
+                        <p class="mt-2 text-muted">Anonymised inputs mean the explanation says <em>which pattern</em> drove a decision (for example "V14 is strongly negative"), not a plain-language reason such as "unusual foreign merchant". In a real deployment the bank, which owns the transformation, can map components back to named signals internally.</p>
+                    </details>
+                    <details class="mt-2">
+                        <summary>How this dashboard keeps the model from being a black box</summary>
+                        <ul class="mt-2 text-muted mb-0">
+                            <li>Every verdict shows the signals that pushed it each way.</li>
+                            <li>The what-if explorer lets you test the model's behaviour yourself.</li>
+                            <li>Probabilities are calibrated, so 90% means roughly 90%.</li>
+                            <li>Honest mode and the uncertainty ranges show where it fails.</li>
+                        </ul>
+                    </details>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
+
+    <!-- ============ ACTIVITY ============ -->
+    <section id="activity" class="mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h4 class="mb-0">Demo activity</h4>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-btn">Refresh</button>
+        </div>
+        <p class="small text-muted">These counts only reflect transactions analysed in this demo, not a real-world fraud rate (in the real dataset about 0.17% of transactions are fraud).</p>
+        <div class="row mb-4" id="stats-container" aria-live="polite"></div>
+        <div class="card p-4">
+            <h6>Recent transactions</h6>
+            <div class="table-responsive">
+                <table class="table table-striped" id="history-table">
+                    <thead>
+                        <tr><th>ID</th><th>Amount</th><th>Prediction</th><th>Risk (%)</th><th>Level</th><th>Time</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
 </div>
 
 <script src="js/main.js"></script>

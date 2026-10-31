@@ -1,5 +1,6 @@
 import joblib
 import numpy as np
+import xgboost as xgb
 from backend.config import settings
 import logging
 
@@ -20,6 +21,7 @@ class MLService:
         self.scaler = None
         self.feature_names = None
         self.threshold = 0.5
+        self.model_card = {}
         self.load_artifacts()
 
     def load_artifacts(self):
@@ -35,6 +37,10 @@ class MLService:
                 with open(thresh_path, 'r') as f:
                     data = json.load(f)
                     self.threshold = data.get("threshold", 0.5)
+            card_path = os.path.join(os.path.dirname(settings.MODEL_PATH), "model_card.json")
+            if os.path.exists(card_path):
+                with open(card_path, 'r') as f:
+                    self.model_card = json.load(f)
             logging.info(f"ML artifacts loaded successfully. Decision Threshold: {self.threshold}")
         except Exception as e:
             logging.error(f"Error loading ML artifacts: {e}")
@@ -51,6 +57,31 @@ class MLService:
                 logging.error(f"Contents of {path}: {sorted(os.listdir(path))}")
             except OSError as err:
                 logging.error(f"Cannot list {path}: {err}")
+
+    def explain(self, features_dict: dict, top_n: int = 6):
+        """Per-feature contributions (log-odds) from the underlying XGBoost booster.
+
+        Positive values push the score toward FRAUD, negative toward LEGITIMATE. The isotonic
+        calibration is monotonic, so the direction of each push carries over to the final probability.
+        """
+        try:
+            values = np.array([features_dict[fn] for fn in self.feature_names], dtype=float).reshape(1, -1)
+            scaled = self.scaler.transform(values)
+            booster = self.model.calibrated_classifiers_[0].estimator.get_booster()
+            contribs = booster.predict(xgb.DMatrix(scaled), pred_contribs=True)[0][:-1]
+        except Exception:
+            logging.exception("Could not compute explanation")
+            return []
+        order = np.argsort(np.abs(contribs))[::-1][:top_n]
+        return [
+            {
+                "feature": self.feature_names[i],
+                "value": round(float(features_dict[self.feature_names[i]]), 4),
+                "contribution": round(float(contribs[i]), 4),
+                "direction": "fraud" if contribs[i] > 0 else "legitimate",
+            }
+            for i in order
+        ]
 
     def predict(self, features_dict: dict):
         if not self.model or not self.scaler:
@@ -86,7 +117,8 @@ class MLService:
             "risk_level": risk_level,
             "decision_threshold": round(float(self.threshold), 6),
             "model": type(self.model).__name__,
-            "feature_count": len(self.feature_names)
+            "feature_count": len(self.feature_names),
+            "top_factors": self.explain(features_dict),
         }
 
 ml_service = MLService()

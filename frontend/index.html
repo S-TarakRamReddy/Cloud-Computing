@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fraud Detection Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <style>
         body { background-color: #f8f9fa; }
         .card { border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -22,8 +23,10 @@
 </nav>
 
 <div class="container mt-4">
+    <div id="error-banner" class="alert alert-danger d-none" role="alert"></div>
+
     <!-- Stats Row -->
-    <div class="row mb-4" id="stats-container">
+    <div class="row mb-4" id="stats-container" aria-live="polite">
         <!-- populated by JS -->
     </div>
 
@@ -32,7 +35,7 @@
         <div class="col-md-5">
             <div class="card p-4">
                 <h4>Dataset Demo</h4>
-                <p class="text-muted small">Select an actual transaction from the dataset to test the model on all 30 features.</p>
+                <p class="text-muted small">Select an actual transaction from the dataset to test the model on all 29 model features (V1–V28 and Amount).</p>
                 
                 <div class="d-grid gap-2 mb-3">
                     <button class="btn btn-danger" onclick="fetchDemo('fraud')">Select Fraud Example</button>
@@ -47,7 +50,7 @@
                 
                 <button type="button" id="predict-btn" class="btn btn-primary w-100 mb-3" onclick="submitDemo()" disabled>Predict Fraud Risk</button>
 
-                <div class="mt-2 d-none" id="prediction-result">
+                <div class="mt-2 d-none" id="prediction-result" aria-live="polite">
                     <h5 class="border-bottom pb-2">Prediction Result</h5>
                     <p class="mb-1">Model Prediction: <span id="res-pred" class="badge fs-6"></span></p>
                     <p class="mb-1">Fraud Risk Probability: <strong><span id="res-prob"></span>%</strong></p>
@@ -59,7 +62,7 @@
                             <li>Features Evaluated: <span id="res-feat-count"></span></li>
                         </ul>
                     </div>
-                    <small class="text-muted mt-2 d-block">* This is a model-generated risk score, not absolute proof of fraud.</small>
+                    <small class="text-muted mt-2 d-block">* This is a model-generated risk score, not absolute proof of fraud. Demo only, not for real financial decisions.</small>
                 </div>
             </div>
         </div>

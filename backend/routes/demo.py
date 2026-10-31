@@ -1,4 +1,5 @@
-from fastapi import APIRouter
+from typing import Literal
+from fastapi import APIRouter, HTTPException
 import json
 import os
 import random
@@ -17,15 +18,12 @@ if os.path.exists(demo_file):
 from backend.services.ml_service import ml_service
 
 @router.get("/transaction")
-def get_demo_transaction(type: str = "random"):
-    if type not in ["fraud", "legitimate", "random"]:
-        type = "random"
-        
+def get_demo_transaction(type: Literal["fraud", "legitimate", "random"] = "random"):
     if type == "random":
         actual_type = random.choice(["fraud", "legitimate"])
         transactions = demo_data.get(actual_type, [])
         if not transactions:
-            return {"error": "No demo data available"}
+            raise HTTPException(status_code=404, detail="No demo data available")
         transaction = random.choice(transactions)
         return {
             "type": actual_type.upper(),
@@ -34,7 +32,7 @@ def get_demo_transaction(type: str = "random"):
         
     transactions = demo_data.get(type, [])
     if not transactions:
-        return {"error": "No demo data available"}
+        raise HTTPException(status_code=404, detail="No demo data available")
         
     # We want a random one that matches the expected prediction
     shuffled_transactions = random.sample(transactions, len(transactions))

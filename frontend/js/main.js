@@ -1,145 +1,164 @@
 const API_BASE = "";
 
+function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+}
+
+function riskClassFor(level) {
+    if (level === "HIGH") return "risk-high";
+    if (level === "MEDIUM") return "risk-medium";
+    return "risk-low";
+}
+
+async function apiJson(url, options) {
+    const res = await fetch(url, options);
+    let body = null;
+    try { body = await res.json(); } catch (_) { /* non-JSON error body */ }
+    if (!res.ok) {
+        const detail = body && body.detail;
+        throw new Error(typeof detail === "string" ? detail : `Request failed (${res.status})`);
+    }
+    return body;
+}
+
+function showError(message) {
+    const box = document.getElementById('error-banner');
+    box.textContent = message;
+    box.classList.remove('d-none');
+}
+
+function clearError() {
+    document.getElementById('error-banner').classList.add('d-none');
+}
+
+function statCard(colorClasses, label, value) {
+    const col = el('div', 'col-6 col-md-3 mb-3 mb-md-0');
+    const card = el('div', `card ${colorClasses} p-3 text-center`);
+    card.append(el('h5', null, label), el('h3', null, value));
+    col.appendChild(card);
+    return col;
+}
+
 async function fetchStats() {
     try {
-        const res = await fetch(`${API_BASE}/statistics/`);
-        const data = await res.json();
-        
+        const data = await apiJson(`${API_BASE}/statistics/`);
         const container = document.getElementById('stats-container');
-        container.innerHTML = `
-            <div class="col-md-3">
-                <div class="card bg-primary text-white p-3 text-center">
-                    <h5>Total Transactions</h5>
-                    <h3>${data.total_transactions}</h3>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-success text-white p-3 text-center">
-                    <h5>Legitimate</h5>
-                    <h3>${data.legitimate_transactions}</h3>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-danger text-white p-3 text-center">
-                    <h5>Predicted Fraud</h5>
-                    <h3>${data.fraudulent_transactions}</h3>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-warning text-dark p-3 text-center">
-                    <h5>Fraud Rate</h5>
-                    <h3>${data.fraud_percentage}%</h3>
-                </div>
-            </div>
-        `;
+        container.replaceChildren(
+            statCard('bg-primary text-white', 'Total Transactions', data.total_transactions),
+            statCard('bg-success text-white', 'Legitimate', data.legitimate_transactions),
+            statCard('bg-danger text-white', 'Predicted Fraud', data.fraudulent_transactions),
+            statCard('bg-warning text-dark', 'Fraud Rate', `${data.fraud_percentage}%`)
+        );
     } catch (e) {
         console.error("Error fetching stats", e);
+        showError("Could not load statistics: " + e.message);
     }
 }
 
 async function fetchHistory() {
     try {
-        const res = await fetch(`${API_BASE}/transactions/?limit=10`);
-        const data = await res.json();
-        
+        const data = await apiJson(`${API_BASE}/transactions/?limit=10`);
         const tbody = document.querySelector('#history-table tbody');
-        tbody.innerHTML = "";
-        
+        tbody.replaceChildren();
+
+        if (data.length === 0) {
+            const tr = el('tr');
+            const td = el('td', 'text-center text-muted', 'No transactions yet. Run a prediction to get started.');
+            td.colSpan = 6;
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+            return;
+        }
+
         data.forEach(tx => {
-            let riskClass = "risk-low";
-            if (tx.risk_level === "HIGH") riskClass = "risk-high";
-            if (tx.risk_level === "MEDIUM") riskClass = "risk-medium";
-            
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${tx.id}</td>
-                <td>$${tx.amount.toFixed(2)}</td>
-                <td><strong>${tx.prediction}</strong></td>
-                <td>${(tx.fraud_probability * 100).toFixed(2)}%</td>
-                <td class="${riskClass}">${tx.risk_level}</td>
-                <td>${new Date(tx.timestamp).toLocaleString()}</td>
-            `;
+            const tr = el('tr');
+            const pred = el('td');
+            pred.appendChild(el('strong', null, tx.prediction));
+            tr.append(
+                el('td', null, tx.id),
+                el('td', null, `\u20AC${tx.amount.toFixed(2)}`),
+                pred,
+                el('td', null, `${(tx.fraud_probability * 100).toFixed(2)}%`),
+                el('td', riskClassFor(tx.risk_level), tx.risk_level),
+                el('td', null, new Date(tx.timestamp).toLocaleString())
+            );
             tbody.appendChild(tr);
         });
     } catch (e) {
         console.error("Error fetching history", e);
+        showError("Could not load recent transactions: " + e.message);
     }
 }
 
 let currentDemoFeatures = null;
 
+function setBusy(button, busy, idleLabel) {
+    button.disabled = busy;
+    button.textContent = busy ? "Working..." : idleLabel;
+}
+
 async function fetchDemo(type) {
+    clearError();
     try {
-        const response = await fetch(`${API_BASE}/demo/transaction?type=${type}`);
-        if (response.ok) {
-            const data = await response.json();
-            currentDemoFeatures = data.features;
-            
-            // Show details
-            document.getElementById('demo-details').style.display = 'block';
-            document.getElementById('demo-label').textContent = data.type;
-            
-            // Format features for display
-            const featureStr = Object.entries(data.features)
-                .map(([k, v]) => `${k}: ${v.toFixed(4)}`)
-                .join(', ');
-            document.getElementById('demo-features-text').textContent = featureStr;
-            
-            // Enable predict button
-            document.getElementById('predict-btn').disabled = false;
-            
-            // Hide previous results
-            document.getElementById('prediction-result').classList.add('d-none');
-        }
+        const data = await apiJson(`${API_BASE}/demo/transaction?type=${encodeURIComponent(type)}`);
+        currentDemoFeatures = data.features;
+
+        document.getElementById('demo-details').style.display = 'block';
+        document.getElementById('demo-label').textContent = data.type;
+
+        const featureStr = Object.entries(data.features)
+            .map(([k, v]) => `${k}: ${v.toFixed(4)}`)
+            .join(', ');
+        document.getElementById('demo-features-text').textContent = featureStr;
+
+        document.getElementById('predict-btn').disabled = false;
+        document.getElementById('prediction-result').classList.add('d-none');
     } catch (error) {
         console.error('Error fetching demo:', error);
-        alert('Failed to fetch demo transaction');
+        showError('Failed to fetch demo transaction: ' + error.message);
     }
 }
 
 async function submitDemo() {
     if (!currentDemoFeatures) return;
-    
+    clearError();
+
+    const button = document.getElementById('predict-btn');
+    setBusy(button, true, "Predict Fraud Risk");
     try {
-        const payload = { features: currentDemoFeatures };
-        
-        const res = await fetch(`${API_BASE}/predict/`, {
+        const result = await apiJson(`${API_BASE}/predict/`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ features: currentDemoFeatures })
         });
-        
-        const result = await res.json();
-        
-        const resultDiv = document.getElementById('prediction-result');
-        resultDiv.classList.remove('d-none');
-        
-        document.getElementById('res-pred').textContent = result.prediction;
-        document.getElementById('res-pred').className = result.prediction === "FRAUD" ? "badge bg-danger fs-6" : "badge bg-success fs-6";
-        
+
+        document.getElementById('prediction-result').classList.remove('d-none');
+
+        const pred = document.getElementById('res-pred');
+        pred.textContent = result.prediction;
+        pred.className = result.prediction === "FRAUD" ? "badge bg-danger fs-6" : "badge bg-success fs-6";
+
         document.getElementById('res-prob').textContent = (result.fraud_probability * 100).toFixed(2);
         document.getElementById('res-thresh').textContent = (result.decision_threshold * 100).toFixed(2);
-        document.getElementById('res-level').textContent = result.risk_level;
-        
-        if (result.model) {
-            document.getElementById('res-model').textContent = result.model;
-            document.getElementById('res-feat-count').textContent = result.feature_count;
-        }
-        
-        let riskClass = "risk-low";
-        if (result.risk_level === "HIGH") riskClass = "risk-high";
-        if (result.risk_level === "MEDIUM") riskClass = "risk-medium";
-        document.getElementById('res-level').className = riskClass;
-        
-        // Refresh dashboard
+
+        const level = document.getElementById('res-level');
+        level.textContent = result.risk_level;
+        level.className = riskClassFor(result.risk_level);
+
+        document.getElementById('res-model').textContent = result.model;
+        document.getElementById('res-feat-count').textContent = result.feature_count;
+
         fetchStats();
         fetchHistory();
-        
     } catch (e) {
-        alert("Error making prediction: " + e.message);
+        showError("Error making prediction: " + e.message);
+    } finally {
+        setBusy(button, false, "Predict Fraud Risk");
     }
 }
 
-// Initial load
 fetchStats();
 fetchHistory();

@@ -3,7 +3,10 @@ from sqlalchemy.orm import Session
 from backend.schemas import TransactionInput, PredictionResponse
 from backend.database import get_db
 from backend.models import Transaction
-from backend.services.ml_service import ml_service
+import logging
+from backend.services.ml_service import ml_service, FeatureValidationError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/predict", tags=["Prediction"])
 
@@ -29,5 +32,10 @@ def predict_fraud(transaction_input: TransactionInput, db: Session = Depends(get
         
         return result
         
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except FeatureValidationError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except ValueError as e:  # model not loaded
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception:
+        logger.exception("Prediction failed")
+        raise HTTPException(status_code=500, detail="Internal server error")

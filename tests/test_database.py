@@ -3,6 +3,8 @@ from backend.main import app
 from backend.database import get_db, Base, engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
+import json
+import os
 import pytest
 
 # Use a separate test database
@@ -24,13 +26,9 @@ client = TestClient(app)
 
 def test_prediction_and_db_insertion():
     # Make a prediction request
-    payload = {
-        "features": {
-            "Amount": 100.0,
-            "V1": 0.0,
-            "V2": 0.0
-        }
-    }
+    with open(os.path.join(os.path.dirname(__file__), "..", "backend", "demo_data.json")) as f:
+        sample = json.load(f)["legitimate"][0]
+    payload = {"features": dict(sample, Amount=100.0)}
     response = client.post("/predict/", json=payload)
     assert response.status_code == 200
     data = response.json()

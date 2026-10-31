@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import engine, Base
@@ -13,8 +14,6 @@ app = FastAPI(
     version="1.0.0"
 )
 
-import os
-
 # CORS configuration
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8080")
 origins = [frontend_url]
@@ -24,7 +23,7 @@ if frontend_url != "*":
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins if frontend_url != "*" else ["*"],
-    allow_credentials=True,
+    allow_credentials=frontend_url != "*",
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -33,15 +32,13 @@ app.add_middleware(
 app.include_router(prediction.router)
 app.include_router(transactions.router)
 app.include_router(statistics.router)
-try:
-    from backend.routes import demo
-    app.include_router(demo.router)
-except ImportError:
-    pass
+from backend.routes import demo
+app.include_router(demo.router)
 
 @app.get("/health", tags=["System"])
 def health_check():
-    return {"status": "healthy"}
+    from backend.services.ml_service import ml_service
+    return {"status": "healthy" if ml_service.model else "degraded", "model_loaded": ml_service.model is not None}
 
 @app.get("/model-info", tags=["System"])
 def model_info():
@@ -55,17 +52,8 @@ def model_info():
     return {"status": "not_loaded"}
 
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-import os
 
 frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
-
-@app.get("/")
-def serve_index():
-    index_file = os.path.join(frontend_path, "index.html")
-    if os.path.exists(index_file):
-        return FileResponse(index_file)
-    return {"detail": "Not Found"}
 
 if os.path.exists(frontend_path):
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")

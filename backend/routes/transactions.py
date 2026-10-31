@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 from backend.schemas import TransactionResponse
@@ -8,7 +8,7 @@ from backend.models import Transaction
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 @router.get("/", response_model=List[TransactionResponse])
-def get_transactions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_transactions(skip: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500), db: Session = Depends(get_db)):
     transactions = db.query(Transaction).order_by(Transaction.timestamp.desc()).offset(skip).limit(limit).all()
     return transactions
 

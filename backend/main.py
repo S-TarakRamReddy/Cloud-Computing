@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.database import engine, Base
 from backend.routes import prediction, transactions, statistics
 from backend.config import settings
+from backend.metrics import metrics_middleware, render_metrics
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -13,6 +14,8 @@ app = FastAPI(
     description="A Machine Learning and Cloud-Based Framework for Real-Time Transaction Fraud Risk Prediction",
     version="1.0.0"
 )
+
+app.middleware("http")(metrics_middleware)
 
 # CORS configuration
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8080")
@@ -39,6 +42,12 @@ app.include_router(demo.router)
 def health_check():
     from backend.services.ml_service import ml_service
     return {"status": "healthy" if ml_service.model else "degraded", "model_loaded": ml_service.model is not None}
+
+@app.get("/metrics", tags=["System"], include_in_schema=False)
+def metrics():
+    """Prometheus scrape endpoint."""
+    from backend.services.ml_service import ml_service
+    return render_metrics(ml_service.model is not None)
 
 @app.get("/model-card", tags=["System"])
 def model_card():

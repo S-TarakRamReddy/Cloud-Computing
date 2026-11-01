@@ -289,6 +289,8 @@ function buildWhatIf() {
     $('whatif-controls').classList.remove('d-none');
 
     $('amount-input').value = Number(state.current.Amount).toFixed(2);
+    // read Amount's share from the model card so the text cannot go out of date
+    $('amount-note').textContent = `Amount barely matters to this model (about ${pct(state.card.feature_importance.Amount, 0)}% of its decision).`;
 
     const box = $('sliders');
     box.replaceChildren();
